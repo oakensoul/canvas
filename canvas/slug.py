@@ -6,6 +6,8 @@ import datetime
 import random
 import re
 
+from canvas.exceptions import CanvasSessionError
+
 _ADJECTIVES = (
     "alpine",
     "amber",
@@ -173,13 +175,15 @@ _NOUNS = (
 )
 
 
-def generate_slug(label: str | None = None) -> str:
+def generate_slug(label: str | None = None, date: datetime.date | None = None) -> str:
     """Generate a dated slug for a new session.
 
     No label: YYYY-MM-DD-adj-noun (random)
     With label: YYYY-MM-DD-kebab-cased-label
+
+    If *date* is ``None``, defaults to today.
     """
-    date = datetime.date.today().isoformat()
+    date_str = (date or datetime.date.today()).isoformat()
 
     if label is not None:
         kebab = label.lower().strip()
@@ -188,11 +192,11 @@ def generate_slug(label: str | None = None) -> str:
         kebab = re.sub(r"-+", "-", kebab)
         kebab = kebab.strip("-")
         if not kebab:
-            raise ValueError(
+            raise CanvasSessionError(
                 "Label must contain at least one alphanumeric character"
             )
-        return f"{date}-{kebab}"
+        return f"{date_str}-{kebab}"
 
     adj = random.choice(_ADJECTIVES)
     noun = random.choice(_NOUNS)
-    return f"{date}-{adj}-{noun}"
+    return f"{date_str}-{adj}-{noun}"
