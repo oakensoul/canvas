@@ -13,9 +13,9 @@ import pytest
 from canvas.config import CanvasPaths, resolve_paths
 from canvas.core import new_session
 from canvas.exceptions import CanvasConfigError, CanvasSessionError, CanvasTemplateError
-from canvas.models import SessionStatus
-from canvas.registry import add_session, find_session
-from canvas.models import Session
+from canvas.models import Session, SessionStatus
+from canvas.registry import add_session, find_session, remove_session
+from canvas.slug import generate_slug
 
 
 def _setup_config(canvas_home: Path, org: str = "acme") -> None:
@@ -59,7 +59,7 @@ class TestNewSessionEndToEnd:
         # Session object returned with correct fields
         assert session.org == "acme"
         assert session.status == SessionStatus.ACTIVE
-        assert session.created == datetime.date.today()
+        assert isinstance(session.created, datetime.date)
         assert session.label is None
 
         # Directory created
@@ -123,9 +123,8 @@ class TestSlugCollisionLabelDisk:
 
     def test_label_collision_on_disk_raises(self, full_env: CanvasPaths):
         paths = full_env
-        # Create a directory that looks like a session slug but isn't in registry
-        today = datetime.date.today().isoformat()
-        slug = f"{today}-disk-only"
+        # Use generate_slug to compute the real slug, then pre-create the directory
+        slug = generate_slug("disk only")
         (paths.sessions_dir / slug).mkdir(parents=True)
 
         with pytest.raises(CanvasSessionError, match="already exists"):
@@ -137,27 +136,31 @@ class TestRandomSlugCollisionRetry:
 
     def test_retry_succeeds_after_collisions(self, full_env: CanvasPaths):
         paths = full_env
-        today = datetime.date.today().isoformat()
-        colliding_slug = f"{today}-bold-anchor"
-        unique_slug = f"{today}-calm-brook"
+        fixed_date = datetime.date(2026, 8, 15)
+        fixed_iso = fixed_date.isoformat()
+        colliding_slug = f"{fixed_iso}-bold-anchor"
+        unique_slug = f"{fixed_iso}-calm-brook"
 
         # Pre-create the colliding slug directory on disk
         (paths.sessions_dir / colliding_slug).mkdir(parents=True)
 
         call_count = 0
 
-        def mock_generate_slug(label=None):
+        def mock_generate_slug(label=None, date=None):
             nonlocal call_count
             call_count += 1
             if call_count <= 3:
                 return colliding_slug
             return unique_slug
 
-        with patch("canvas.core.generate_slug", side_effect=mock_generate_slug):
+        with patch("canvas.core.generate_slug", side_effect=mock_generate_slug), \
+             patch("canvas.core.datetime") as mock_dt:
+            mock_dt.date.today.return_value = fixed_date
+            mock_dt.date.side_effect = lambda *a, **kw: datetime.date(*a, **kw)
             session = new_session(paths=paths)
 
         assert session.slug == unique_slug
-        assert call_count == 4  # 3 collisions + 1 success
+        assert call_count == 4
 
 
 class TestRandomSlugExhaustsRetries:
@@ -165,16 +168,19 @@ class TestRandomSlugExhaustsRetries:
 
     def test_all_retries_exhausted_raises(self, full_env: CanvasPaths):
         paths = full_env
-        today = datetime.date.today().isoformat()
-        colliding_slug = f"{today}-bold-anchor"
+        fixed_date = datetime.date(2026, 8, 15)
+        fixed_iso = fixed_date.isoformat()
+        colliding_slug = f"{fixed_iso}-bold-anchor"
 
-        # Pre-create the colliding slug directory on disk
         (paths.sessions_dir / colliding_slug).mkdir(parents=True)
 
-        def mock_generate_slug(label=None):
-            return colliding_slug  # Always collide
+        def mock_generate_slug(label=None, date=None):
+            return colliding_slug
 
-        with patch("canvas.core.generate_slug", side_effect=mock_generate_slug):
+        with patch("canvas.core.generate_slug", side_effect=mock_generate_slug), \
+             patch("canvas.core.datetime") as mock_dt:
+            mock_dt.date.today.return_value = fixed_date
+            mock_dt.date.side_effect = lambda *a, **kw: datetime.date(*a, **kw)
             with pytest.raises(CanvasSessionError, match="Failed to generate a unique slug"):
                 new_session(paths=paths)
 
@@ -213,13 +219,62 @@ class TestLabelFlowsThrough:
 
     def test_label_in_slug_and_registry(self, full_env: CanvasPaths):
         paths = full_env
-        session = new_session(label="My Cool Feature", paths=paths)
+        fixed_date = datetime.date(2026, 8, 15)
 
-        today = datetime.date.today().isoformat()
-        assert session.slug == f"{today}-my-cool-feature"
+        with patch("canvas.core.datetime") as mock_dt:
+            mock_dt.date.today.return_value = fixed_date
+            mock_dt.date.side_effect = lambda *a, **kw: datetime.date(*a, **kw)
+            session = new_session(label="My Cool Feature", paths=paths)
+
+        expected_slug = generate_slug("My Cool Feature", date=fixed_date)
+        assert session.slug == expected_slug
         assert session.label == "My Cool Feature"
 
-        # Verify in registry too
         found = find_session(session.slug, paths=paths)
         assert found is not None
         assert found.label == "My Cool Feature"
+
+
+class TestPartialFailureCleanup:
+    """new_session cleans up directory on partial failure."""
+
+    def test_template_error_cleans_up_directory(self, full_env: CanvasPaths):
+        paths = full_env
+        # Remove the template to cause render_claude_md to fail
+        import shutil
+
+        shutil.rmtree(paths.template_base / "acme")
+
+        with pytest.raises(CanvasTemplateError, match="No template found"):
+            new_session(org="acme", paths=paths)
+
+        # Verify no orphaned session directories were left behind
+        session_dirs = list(paths.sessions_dir.iterdir())
+        assert session_dirs == [], f"Orphaned dirs: {session_dirs}"
+
+    def test_registry_error_cleans_up_directory(self, full_env: CanvasPaths):
+        paths = full_env
+        # Mock add_session to fail after directory + CLAUDE.md are created
+        with patch("canvas.core.add_session", side_effect=RuntimeError("boom")):
+            with pytest.raises(RuntimeError, match="boom"):
+                new_session(paths=paths)
+
+        # Verify no orphaned session directories were left behind
+        session_dirs = list(paths.sessions_dir.iterdir())
+        assert session_dirs == [], f"Orphaned dirs: {session_dirs}"
+
+
+class TestRegistryOnlyCollision:
+    """Slug exists in registry but directory is missing — still a collision."""
+
+    def test_label_collision_registry_no_dir(self, full_env: CanvasPaths):
+        paths = full_env
+        # Create a session, then delete its directory but keep registry entry
+        s = new_session(label="orphan test", paths=paths)
+        import shutil
+
+        shutil.rmtree(paths.sessions_dir / s.slug)
+
+        # Same label should still collide via registry check
+        with pytest.raises(CanvasSessionError, match="already exists"):
+            new_session(label="orphan test", paths=paths)

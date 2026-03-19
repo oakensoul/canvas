@@ -6,6 +6,8 @@ import datetime
 import random
 import re
 
+from canvas.exceptions import CanvasSessionError
+
 _ADJECTIVES = (
     "alpine",
     "amber",
@@ -190,7 +192,7 @@ def generate_slug(label: str | None = None, date: datetime.date | None = None) -
         kebab = re.sub(r"-+", "-", kebab)
         kebab = kebab.strip("-")
         if not kebab:
-            raise ValueError(
+            raise CanvasSessionError(
                 "Label must contain at least one alphanumeric character"
             )
         return f"{date_str}-{kebab}"

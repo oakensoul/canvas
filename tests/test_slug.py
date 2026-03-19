@@ -7,6 +7,7 @@ import re
 
 import pytest
 
+from canvas.exceptions import CanvasSessionError
 from canvas.slug import _ADJECTIVES, _NOUNS, generate_slug
 
 FIXED_DATE = datetime.date(2025, 7, 15)
@@ -91,19 +92,19 @@ class TestGenerateSlugWithLabel:
         assert slug == f"{FIXED_ISO}-a-b"
 
     def test_empty_label_raises(self) -> None:
-        with pytest.raises(ValueError, match="alphanumeric"):
+        with pytest.raises(CanvasSessionError, match="alphanumeric"):
             generate_slug("")
 
     def test_whitespace_only_label_raises(self) -> None:
-        with pytest.raises(ValueError, match="alphanumeric"):
+        with pytest.raises(CanvasSessionError, match="alphanumeric"):
             generate_slug("   ")
 
     def test_all_punctuation_label_raises(self) -> None:
-        with pytest.raises(ValueError, match="alphanumeric"):
+        with pytest.raises(CanvasSessionError, match="alphanumeric"):
             generate_slug("!@#$%")
 
     def test_all_hyphens_label_raises(self) -> None:
-        with pytest.raises(ValueError, match="alphanumeric"):
+        with pytest.raises(CanvasSessionError, match="alphanumeric"):
             generate_slug("---")
 
     def test_unicode_label_stripped(self) -> None:
