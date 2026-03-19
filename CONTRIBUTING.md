@@ -8,9 +8,7 @@ Please review our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
 ## Prerequisites
 
 - **Python 3.11** or newer
-- **pip**
 - **Git**
-- **pre-commit** (optional, but recommended)
 
 ## Setting Up Your Development Environment
 
@@ -19,16 +17,15 @@ Please review our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
 git clone https://github.com/<your-username>/canvas.git
 cd canvas
 
-# Create and activate a virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
 # Install in editable mode with dev dependencies
 pip install -e ".[dev]"
 
 # Install pre-commit hooks
 pre-commit install
 ```
+
+The project uses a `.pre-commit-config.yaml` file to run automated checks
+before each commit. Make sure pre-commit hooks are installed.
 
 ## Development Workflow
 
@@ -117,9 +114,8 @@ write them.
 
 1. Fill out the PR template completely.
 2. Ensure **CI passes** on all checks.
-3. Use **conventional commit messages**.
-4. Update documentation and CHANGELOG.md if needed.
-5. Keep PRs focused — prefer small, incremental changes over large sweeping
+3. At least **one approval** is required before merging.
+4. Keep PRs focused — prefer small, incremental changes over large sweeping
    ones.
 
 ## Questions?
