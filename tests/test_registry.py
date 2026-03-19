@@ -191,13 +191,22 @@ class TestCRUDCycle:
 
 
 class TestSaveRegistryErrors:
-    def test_oserror_raises_and_cleans_up(self, canvas_home: Path):
-        """OSError during write raises CanvasRegistryError and leaves no temp files."""
-        with patch("canvas.registry.Path.write_text", side_effect=OSError("disk full")):
+    def test_oserror_on_replace_cleans_up_tmp(self, canvas_home: Path):
+        """OSError during atomic replace raises CanvasRegistryError and cleans up temp file."""
+        with patch.object(Path, "replace", side_effect=OSError("permission denied")):
             with pytest.raises(CanvasRegistryError, match="Failed to write registry"):
                 save_registry([_make_session()])
+        # The temp file should have been cleaned up by the except branch
         tmp_files = list(canvas_home.glob("registry.json.tmp.*"))
         assert tmp_files == []
+
+
+class TestLoadRegistryEdgeCases:
+    def test_missing_sessions_key_returns_empty(self, canvas_home: Path):
+        """Valid JSON without a 'sessions' key returns empty list."""
+        (canvas_home / "registry.json").write_text('{"version": 1}')
+        sessions = load_registry()
+        assert sessions == []
 
 
 class TestExplicitPaths:
@@ -213,6 +222,14 @@ class TestExplicitPaths:
         sessions = load_registry(paths=paths)
         assert len(sessions) == 1
         assert sessions[0].slug == "s1"
+
+    def test_add_and_find_with_explicit_paths(self, canvas_home: Path):
+        paths = resolve_paths(canvas_home=canvas_home)
+        session = _make_session(slug="explicit")
+        add_session(session, paths=paths)
+        found = find_session("explicit", paths=paths)
+        assert found is not None
+        assert found.slug == "explicit"
 
 
 class TestRoundTrip:
