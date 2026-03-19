@@ -28,6 +28,9 @@ canvas nuke <slug>
 
 # Rename a session
 canvas rename <slug> <label>
+
+# Re-enter an existing session
+canvas open <slug>
 ```
 
 ## Configuration

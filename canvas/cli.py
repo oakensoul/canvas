@@ -1,4 +1,4 @@
-"""Click CLI for canvas — commands: new, list, archive, nuke, rename."""
+"""Click CLI for canvas — commands: new, list, archive, nuke, rename, open."""
 
 import click
 

@@ -34,6 +34,7 @@ canvas list                       # show all sessions
 canvas archive <slug>             # mark as archived (keep for reference)
 canvas nuke <slug>                # delete session directory + remove from registry
 canvas rename <slug> <label>      # rename a session
+canvas open <slug>                # re-enter an existing session, launch claude
 ```
 
 ---
@@ -63,6 +64,10 @@ Deletes the session directory and removes the entry from the registry. No recove
 ### `canvas rename`
 
 Updates the label in the registry. Slug and directory name are unchanged.
+
+### `canvas open`
+
+Re-enters an existing session: looks up the slug in the registry, `cd`s into the session directory, and launches `claude`. No template re-rendering — the CLAUDE.md from creation time is used as-is. Works with both active and archived sessions.
 
 ---
 
@@ -98,7 +103,7 @@ No env vars, no flags, no detection logic. The config is user-scoped — `gunnar
       "slug": "2026-03-10-okr-planning",
       "org": "splash",
       "created": "2026-03-10",
-      "label": "okr-planning",
+      "label": "okr planning",
       "status": "active"
     }
   ]
