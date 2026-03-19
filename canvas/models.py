@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import datetime
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Self
@@ -20,7 +22,7 @@ class Session:
     status: SessionStatus
     label: str | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, str | None]:
         return {
             "slug": self.slug,
             "org": self.org,
@@ -30,19 +32,22 @@ class Session:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> Self:
-        # Validate created is ISO 8601 date format
-        import datetime
+    def from_dict(cls, data: dict[str, str | None]) -> Self:
+        # Validate all required fields
+        for field in ("slug", "org", "created", "status"):
+            if field not in data:
+                raise ValueError(f"Missing required field '{field}'")
 
+        # Validate created is ISO 8601 date format
         try:
-            datetime.date.fromisoformat(data["created"])
-        except (ValueError, KeyError) as e:
-            raise ValueError(f"Invalid or missing 'created' date: {e}") from e
+            datetime.date.fromisoformat(data["created"])  # type: ignore[arg-type]
+        except ValueError as e:
+            raise ValueError(f"Invalid 'created' date: {e}") from e
 
         return cls(
-            slug=data["slug"],
-            org=data["org"],
-            created=data["created"],
-            status=SessionStatus(data["status"]),
-            label=data.get("label"),
+            slug=data["slug"],  # type: ignore[arg-type]
+            org=data["org"],  # type: ignore[arg-type]
+            created=data["created"],  # type: ignore[arg-type]
+            status=SessionStatus(data["status"]),  # type: ignore[arg-type]
+            label=data.get("label"),  # type: ignore[arg-type]
         )

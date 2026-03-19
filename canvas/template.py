@@ -1,4 +1,8 @@
-"""CLAUDE.md rendering from org template."""
+"""CLAUDE.md rendering from org template.
+
+Templates are loaded from the user's filesystem (template_base / org / CLAUDE.md.tmpl).
+Jinja2 runs unsandboxed since templates are user-controlled local files.
+"""
 
 from __future__ import annotations
 
@@ -16,19 +20,21 @@ def render_claude_md(
     slug: str,
     label: str | None = None,
     paths: CanvasPaths | None = None,
+    session_path: Path | None = None,
 ) -> str:
     """Render a CLAUDE.md file from the org's Jinja2 template.
 
     Template location: paths.template_base / org / "CLAUDE.md.tmpl"
 
     Available template variables:
-        {{ org }}   - org name
-        {{ date }}  - today's date (ISO 8601)
-        {{ slug }}  - session slug
-        {{ label }} - session label (may be None)
+        {{ org }}          - org name
+        {{ date }}         - today's date (ISO 8601)
+        {{ slug }}         - session slug
+        {{ label }}        - session label (empty string if None)
+        {{ session_path }} - absolute path to session directory (if provided)
 
     Returns rendered string.
-    Raises CanvasTemplateError if template missing or has syntax errors.
+    Raises CanvasTemplateError if template missing or has syntax/render errors.
     """
     if paths is None:
         paths = resolve_paths()
@@ -48,9 +54,15 @@ def render_claude_md(
             f"Syntax error in template for org '{org}': {e}"
         ) from e
 
-    return template.render(
-        org=org,
-        date=datetime.date.today().isoformat(),
-        slug=slug,
-        label=label,
-    )
+    try:
+        return template.render(
+            org=org,
+            date=datetime.date.today().isoformat(),
+            slug=slug,
+            label=label or "",
+            session_path=str(session_path) if session_path else "",
+        )
+    except jinja2.UndefinedError as e:
+        raise CanvasTemplateError(
+            f"Undefined variable in template for org '{org}': {e}"
+        ) from e

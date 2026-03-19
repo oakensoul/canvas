@@ -66,6 +66,12 @@ class TestLoadRegistry:
         with pytest.raises(CanvasRegistryError, match="Corrupt registry"):
             load_registry()
 
+    def test_empty_sessions_list(self, canvas_home: Path):
+        registry_path = canvas_home / "registry.json"
+        registry_path.write_text(json.dumps({"sessions": []}))
+        sessions = load_registry()
+        assert sessions == []
+
 
 class TestSaveRegistry:
     def test_writes_valid_json(self, canvas_home: Path):
@@ -85,8 +91,13 @@ class TestSaveRegistry:
 
     def test_no_tmp_files_after_write(self, canvas_home: Path):
         save_registry([_make_session()])
-        tmp_files = list(canvas_home.glob("registry.tmp.*"))
+        tmp_files = list(canvas_home.glob("registry.json.tmp.*"))
         assert tmp_files == []
+
+    def test_save_empty_list(self, canvas_home: Path):
+        save_registry([])
+        data = json.loads((canvas_home / "registry.json").read_text())
+        assert data == {"sessions": []}
 
     def test_creates_parent_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         nested = tmp_path / "deep" / "nested" / ".canvas"
@@ -136,6 +147,21 @@ class TestCRUDCycle:
     def test_remove_missing_slug_raises(self, canvas_home: Path):
         with pytest.raises(CanvasRegistryError, match="not found"):
             remove_session("nonexistent")
+
+    def test_add_duplicate_slug_raises(self, canvas_home: Path):
+        add_session(_make_session(slug="dup"))
+        with pytest.raises(CanvasRegistryError, match="already exists"):
+            add_session(_make_session(slug="dup"))
+
+    def test_update_immutable_org_raises(self, canvas_home: Path):
+        add_session(_make_session())
+        with pytest.raises(CanvasRegistryError, match="immutable"):
+            update_session("test-session", org="new-org")
+
+    def test_update_immutable_created_raises(self, canvas_home: Path):
+        add_session(_make_session())
+        with pytest.raises(CanvasRegistryError, match="immutable"):
+            update_session("test-session", created="2099-01-01")
 
     def test_full_crud_cycle(self, canvas_home: Path):
         """Add -> find -> update -> remove -> verify removed."""

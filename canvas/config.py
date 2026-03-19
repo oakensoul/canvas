@@ -21,10 +21,14 @@ class CanvasPaths:
     template_base: Path     # ~/.dotfiles-private/canvas/orgs
 
 
-def resolve_paths(canvas_home: Path | None = None) -> CanvasPaths:
+def resolve_paths(
+    canvas_home: Path | None = None,
+    template_base: Path | None = None,
+) -> CanvasPaths:
     """Resolve all canvas paths from a root directory.
 
-    Priority: explicit canvas_home > CANVAS_HOME env var > ~/.canvas/
+    Priority for canvas_home: explicit param > CANVAS_HOME env var > ~/.canvas/
+    Priority for template_base: explicit param > CANVAS_TEMPLATE_BASE env var > default
     """
     if canvas_home is None:
         env = os.environ.get("CANVAS_HOME")
@@ -33,12 +37,19 @@ def resolve_paths(canvas_home: Path | None = None) -> CanvasPaths:
         else:
             canvas_home = Path.home() / ".canvas"
 
+    if template_base is None:
+        env = os.environ.get("CANVAS_TEMPLATE_BASE")
+        if env:
+            template_base = Path(env)
+        else:
+            template_base = Path.home() / ".dotfiles-private" / "canvas" / "orgs"
+
     return CanvasPaths(
         home=canvas_home,
         config=canvas_home / "config",
         registry=canvas_home / "registry.json",
         sessions_dir=canvas_home / "sessions",
-        template_base=Path.home() / ".dotfiles-private" / "canvas" / "orgs",
+        template_base=template_base,
     )
 
 
