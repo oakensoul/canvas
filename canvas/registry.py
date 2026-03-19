@@ -1,17 +1,26 @@
-"""Read/write ~/.canvas/registry.json."""
+"""Read/write ~/.canvas/registry.json.
+
+Note: Registry CRUD operations are not atomic across processes. The
+load -> check -> write pattern means concurrent processes could lose updates
+(a TOCTOU race). This is acceptable for a single-user CLI tool. If
+multi-process support is ever needed, consider ``fcntl.flock`` to serialize
+access to the registry file.
+"""
 
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 from canvas.config import CanvasPaths, resolve_paths
 from canvas.exceptions import CanvasRegistryError
 from canvas.models import Session, SessionStatus
 
-_MUTABLE_FIELDS = frozenset({"label", "status"})
+_MUTABLE_FIELDS = frozenset({"label", "status", "archived_at"})
 
 
 def load_registry(paths: CanvasPaths | None = None) -> list[Session]:
@@ -25,7 +34,7 @@ def load_registry(paths: CanvasPaths | None = None) -> list[Session]:
     try:
         data = json.loads(paths.registry.read_text())
         return [Session.from_dict(s) for s in data.get("sessions", [])]
-    except (json.JSONDecodeError, ValueError) as e:
+    except (json.JSONDecodeError, ValueError, TypeError, AttributeError, KeyError) as e:
         raise CanvasRegistryError(
             f"Corrupt registry at {paths.registry}: {e}\n"
             "You can delete this file and canvas will start fresh."
@@ -70,10 +79,10 @@ def find_session(slug: str, paths: CanvasPaths | None = None) -> Session | None:
     return None
 
 
-def update_session(slug: str, paths: CanvasPaths | None = None, **fields: str) -> Session:
+def update_session(slug: str, paths: CanvasPaths | None = None, **fields: Any) -> Session:
     """Update fields on a session. Returns the updated session.
 
-    Only `label` and `status` can be updated. `slug`, `org`, and `created` are immutable.
+    Only `label`, `status`, and `archived_at` can be updated. `slug`, `org`, and `created` are immutable.
     Raises CanvasRegistryError if slug not found or field is invalid/immutable.
     """
     sessions = load_registry(paths)
@@ -94,6 +103,11 @@ def update_session(slug: str, paths: CanvasPaths | None = None, **fields: str) -
                     raise CanvasRegistryError(
                         f"Invalid status value: {e}"
                     ) from e
+            if "archived_at" in coerced and isinstance(coerced["archived_at"], str):
+                try:
+                    coerced["archived_at"] = datetime.date.fromisoformat(coerced["archived_at"])
+                except ValueError as e:
+                    raise CanvasRegistryError(f"Invalid archived_at value: {e}") from e
             sessions[i] = dataclasses.replace(s, **coerced)
             save_registry(sessions, paths)
             return sessions[i]

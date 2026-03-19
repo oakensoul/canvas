@@ -76,6 +76,7 @@ class TestSession:
             "org": "acme",
             "created": "2026-03-18",
             "label": "test label",
+            "archived_at": None,
             "status": "active",
         }
 
@@ -178,3 +179,28 @@ class TestSession:
         )
         reconstructed = Session.from_dict(original.to_dict())
         assert reconstructed == original
+
+    def test_from_dict_invalid_archived_at(self):
+        data = {
+            "slug": "test",
+            "org": "acme",
+            "created": "2026-01-01",
+            "status": "active",
+            "archived_at": "not-a-date",
+        }
+        with pytest.raises(ValueError, match="archived_at"):
+            Session.from_dict(data)
+
+    def test_round_trip_with_archived_at(self):
+        session = Session(
+            slug="2026-01-15-archived-test",
+            org="acme",
+            created=datetime.date(2026, 1, 15),
+            status=SessionStatus.ARCHIVED,
+            label="Archived Test",
+            archived_at=datetime.date(2026, 2, 1),
+        )
+        d = session.to_dict()
+        restored = Session.from_dict(d)
+        assert restored == session
+        assert restored.archived_at == datetime.date(2026, 2, 1)

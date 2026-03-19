@@ -1,5 +1,7 @@
 """Tests for canvas.template — CLAUDE.md rendering from org templates."""
 
+from __future__ import annotations
+
 import dataclasses
 import datetime
 from pathlib import Path
@@ -9,6 +11,9 @@ import pytest
 from canvas.config import CanvasPaths, resolve_paths
 from canvas.exceptions import CanvasTemplateError
 from canvas.template import render_claude_md
+
+FIXED_DATE = datetime.date(2025, 7, 15)
+FIXED_ISO = FIXED_DATE.isoformat()  # "2025-07-15"
 
 
 def make_paths(canvas_home: Path, template_base: Path) -> CanvasPaths:
@@ -38,12 +43,12 @@ class TestRenderClaudeMdHappyPath:
         )
 
         result = render_claude_md(
-            org="acme", slug="my-session", label="my label", paths=paths
+            org="acme", slug="my-session", label="my label", paths=paths,
+            date=FIXED_DATE,
         )
 
-        today = datetime.date.today().isoformat()
         assert "Org: acme" in result
-        assert f"Date: {today}" in result
+        assert f"Date: {FIXED_ISO}" in result
         assert "Slug: my-session" in result
         assert "Label: my label" in result
 
