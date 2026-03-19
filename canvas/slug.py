@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Oakensoul Studios LLC
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Date + random word slug generation (e.g. 2026-03-13-electric-penguin)."""
 
 from __future__ import annotations

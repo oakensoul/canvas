@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Oakensoul Studios LLC
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for reactivate_session, stale_sessions, and public API imports."""
 
 from __future__ import annotations

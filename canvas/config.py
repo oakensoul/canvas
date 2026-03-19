@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Oakensoul Studios LLC
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Config and path resolution for canvas."""
 
 from __future__ import annotations

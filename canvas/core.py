@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Oakensoul Studios LLC
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Core library — importable by AIDA plugin."""
 
 from __future__ import annotations
