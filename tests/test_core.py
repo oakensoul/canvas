@@ -20,7 +20,7 @@ from canvas.slug import generate_slug
 
 def _setup_config(canvas_home: Path, org: str = "acme") -> None:
     """Write a valid config file."""
-    (canvas_home / "config").write_text(json.dumps({"org": org}))
+    (canvas_home / "config.json").write_text(json.dumps({"org": org}), encoding="utf-8")
 
 
 def _setup_template(template_base: Path, org: str = "acme") -> None:

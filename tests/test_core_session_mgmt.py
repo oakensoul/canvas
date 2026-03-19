@@ -109,16 +109,16 @@ class TestListSessions:
 
 class TestArchiveSession:
     def test_happy_path(self, paths, populated_registry):
-        today = datetime.date.today()
-        result = archive_session("alpha", paths=paths)
+        fixed_date = datetime.date(2026, 6, 15)
+        result = archive_session("alpha", paths=paths, date=fixed_date)
         assert result.status == SessionStatus.ARCHIVED
-        assert result.archived_at == today
+        assert result.archived_at == fixed_date
         assert result.slug == "alpha"
         # Verify persisted
         sessions = load_registry(paths)
         alpha = next(s for s in sessions if s.slug == "alpha")
         assert alpha.status == SessionStatus.ARCHIVED
-        assert alpha.archived_at == today
+        assert alpha.archived_at == fixed_date
 
     def test_already_archived_is_idempotent(self, paths, populated_registry):
         result = archive_session("beta", paths=paths)

@@ -145,18 +145,51 @@ class TestSession:
         with pytest.raises(ValueError, match="Missing required field 'org'"):
             Session.from_dict(data)
 
-    def test_from_dict_extra_unknown_fields_ignored(self):
+    def test_from_dict_extra_unknown_fields_preserved(self):
         data = {
             "slug": "s",
             "org": "o",
             "created": "2026-01-01",
             "status": "active",
             "label": None,
-            "unknown_field": "should be ignored",
+            "unknown_field": "should be preserved",
+            "another": 42,
         }
         s = Session.from_dict(data)
         assert s.slug == "s"
-        assert not hasattr(s, "unknown_field")
+        assert s.extra == {"unknown_field": "should be preserved", "another": 42}
+
+    def test_extra_fields_round_trip(self):
+        """Unknown fields survive a to_dict -> from_dict round trip."""
+        data = {
+            "slug": "s",
+            "org": "o",
+            "created": "2026-01-01",
+            "status": "active",
+            "custom_key": "custom_value",
+        }
+        s = Session.from_dict(data)
+        d = s.to_dict()
+        assert d["custom_key"] == "custom_value"
+        s2 = Session.from_dict(d)
+        assert s2.extra == {"custom_key": "custom_value"}
+        assert s2 == s
+
+    def test_known_fields_take_precedence_over_extra(self):
+        """Known fields overwrite any conflicting extra keys in to_dict."""
+        s = Session(
+            slug="s",
+            org="o",
+            created=_DATE,
+            status=SessionStatus.ACTIVE,
+            extra={"slug": "should-be-overwritten"},
+        )
+        d = s.to_dict()
+        assert d["slug"] == "s"
+
+    def test_extra_defaults_to_empty_dict(self):
+        s = Session(slug="s", org="o", created=_DATE, status=SessionStatus.ACTIVE)
+        assert s.extra == {}
 
     def test_equality(self):
         a = Session(slug="s", org="o", created=_DATE, status=SessionStatus.ACTIVE)
@@ -179,6 +212,26 @@ class TestSession:
         )
         reconstructed = Session.from_dict(original.to_dict())
         assert reconstructed == original
+
+    def test_from_dict_slug_not_string_raises(self):
+        data = {"slug": 123, "org": "o", "created": "2026-01-01", "status": "active"}
+        with pytest.raises(ValueError, match="Field 'slug' must be a string, got int"):
+            Session.from_dict(data)
+
+    def test_from_dict_slug_none_raises(self):
+        data = {"slug": None, "org": "o", "created": "2026-01-01", "status": "active"}
+        with pytest.raises(ValueError, match="Field 'slug' must be a string, got NoneType"):
+            Session.from_dict(data)
+
+    def test_from_dict_org_not_string_raises(self):
+        data = {"slug": "s", "org": 456, "created": "2026-01-01", "status": "active"}
+        with pytest.raises(ValueError, match="Field 'org' must be a string, got int"):
+            Session.from_dict(data)
+
+    def test_from_dict_org_none_raises(self):
+        data = {"slug": "s", "org": None, "created": "2026-01-01", "status": "active"}
+        with pytest.raises(ValueError, match="Field 'org' must be a string, got NoneType"):
+            Session.from_dict(data)
 
     def test_from_dict_invalid_archived_at(self):
         data = {
