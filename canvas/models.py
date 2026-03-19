@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
+import dataclasses
 import datetime
-import re
-from dataclasses import dataclass
 from enum import StrEnum
 from typing import Self
 
@@ -14,11 +13,11 @@ class SessionStatus(StrEnum):
     ARCHIVED = "archived"
 
 
-@dataclass
+@dataclasses.dataclass(frozen=True)
 class Session:
     slug: str
     org: str
-    created: str  # ISO 8601 date: YYYY-MM-DD
+    created: datetime.date
     status: SessionStatus
     label: str | None = None
 
@@ -26,7 +25,7 @@ class Session:
         return {
             "slug": self.slug,
             "org": self.org,
-            "created": self.created,
+            "created": self.created.isoformat(),
             "label": self.label,
             "status": str(self.status),
         }
@@ -38,16 +37,16 @@ class Session:
             if field not in data:
                 raise ValueError(f"Missing required field '{field}'")
 
-        # Validate created is ISO 8601 date format
+        # Validate and parse created date
         try:
-            datetime.date.fromisoformat(data["created"])  # type: ignore[arg-type]
-        except ValueError as e:
+            created = datetime.date.fromisoformat(data["created"])  # type: ignore[arg-type]
+        except (ValueError, TypeError) as e:
             raise ValueError(f"Invalid 'created' date: {e}") from e
 
         return cls(
             slug=data["slug"],  # type: ignore[arg-type]
             org=data["org"],  # type: ignore[arg-type]
-            created=data["created"],  # type: ignore[arg-type]
+            created=created,
             status=SessionStatus(data["status"]),  # type: ignore[arg-type]
             label=data.get("label"),  # type: ignore[arg-type]
         )

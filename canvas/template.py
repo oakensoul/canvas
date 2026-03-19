@@ -48,7 +48,7 @@ def render_claude_md(
 
     try:
         template_text = template_path.read_text()
-        template = jinja2.Template(template_text)
+        template = jinja2.Template(template_text, undefined=jinja2.StrictUndefined)
     except jinja2.TemplateSyntaxError as e:
         raise CanvasTemplateError(
             f"Syntax error in template for org '{org}': {e}"

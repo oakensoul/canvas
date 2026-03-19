@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 from pathlib import Path
 
 from canvas.config import CanvasPaths, resolve_paths
 from canvas.exceptions import CanvasRegistryError
-from canvas.models import Session
+from canvas.models import Session, SessionStatus
 
-_IMMUTABLE_FIELDS = frozenset({"slug", "org", "created"})
+_MUTABLE_FIELDS = frozenset({"label", "status"})
 
 
 def load_registry(paths: CanvasPaths | None = None) -> list[Session]:
@@ -78,14 +79,22 @@ def update_session(slug: str, paths: CanvasPaths | None = None, **fields: str) -
     sessions = load_registry(paths)
     for i, s in enumerate(sessions):
         if s.slug == slug:
-            for key, value in fields.items():
-                if key in _IMMUTABLE_FIELDS:
+            for key in fields:
+                if key not in _MUTABLE_FIELDS:
                     raise CanvasRegistryError(
-                        f"Field '{key}' is immutable and cannot be updated."
+                        f"Field '{key}' is not a mutable session field. "
+                        f"Mutable fields: {', '.join(sorted(_MUTABLE_FIELDS))}"
                     )
-                if not hasattr(s, key):
-                    raise CanvasRegistryError(f"Session has no field '{key}'")
-                setattr(s, key, value)
+            # Coerce status through the enum if provided
+            coerced = dict(fields)
+            if "status" in coerced:
+                try:
+                    coerced["status"] = SessionStatus(coerced["status"])
+                except ValueError as e:
+                    raise CanvasRegistryError(
+                        f"Invalid status value: {e}"
+                    ) from e
+            sessions[i] = dataclasses.replace(s, **coerced)
             save_registry(sessions, paths)
             return sessions[i]
     raise CanvasRegistryError(f"Session '{slug}' not found in registry.")

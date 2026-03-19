@@ -10,4 +10,5 @@ def canvas_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     sessions = home / "sessions"
     sessions.mkdir()
     monkeypatch.setenv("CANVAS_HOME", str(home))
+    monkeypatch.delenv("CANVAS_TEMPLATE_BASE", raising=False)
     return home

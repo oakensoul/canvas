@@ -1,10 +1,13 @@
 """Tests for canvas.registry — CRUD operations on the session registry."""
 
+import datetime
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
+from canvas.config import resolve_paths
 from canvas.exceptions import CanvasRegistryError
 from canvas.models import Session, SessionStatus
 from canvas.registry import (
@@ -16,12 +19,14 @@ from canvas.registry import (
     update_session,
 )
 
+_DATE = datetime.date(2026, 3, 18)
+
 
 def _make_session(slug: str = "test-session", **overrides) -> Session:
     defaults = {
         "slug": slug,
         "org": "acme",
-        "created": "2026-03-18",
+        "created": _DATE,
         "status": SessionStatus.ACTIVE,
         "label": None,
     }
@@ -136,7 +141,7 @@ class TestCRUDCycle:
 
     def test_update_invalid_field_raises(self, canvas_home: Path):
         add_session(_make_session())
-        with pytest.raises(CanvasRegistryError, match="no field"):
+        with pytest.raises(CanvasRegistryError, match="not a mutable session field"):
             update_session("test-session", nonexistent_field="x")
 
     def test_remove_session(self, canvas_home: Path):
@@ -155,13 +160,18 @@ class TestCRUDCycle:
 
     def test_update_immutable_org_raises(self, canvas_home: Path):
         add_session(_make_session())
-        with pytest.raises(CanvasRegistryError, match="immutable"):
+        with pytest.raises(CanvasRegistryError, match="not a mutable session field"):
             update_session("test-session", org="new-org")
 
     def test_update_immutable_created_raises(self, canvas_home: Path):
         add_session(_make_session())
-        with pytest.raises(CanvasRegistryError, match="immutable"):
+        with pytest.raises(CanvasRegistryError, match="not a mutable session field"):
             update_session("test-session", created="2099-01-01")
+
+    def test_update_invalid_status_raises(self, canvas_home: Path):
+        add_session(_make_session())
+        with pytest.raises(CanvasRegistryError, match="Invalid status value"):
+            update_session("test-session", status="bogus")
 
     def test_full_crud_cycle(self, canvas_home: Path):
         """Add -> find -> update -> remove -> verify removed."""
@@ -178,6 +188,31 @@ class TestCRUDCycle:
 
         remove_session("lifecycle")
         assert find_session("lifecycle") is None
+
+
+class TestSaveRegistryErrors:
+    def test_oserror_raises_and_cleans_up(self, canvas_home: Path):
+        """OSError during write raises CanvasRegistryError and leaves no temp files."""
+        with patch("canvas.registry.Path.write_text", side_effect=OSError("disk full")):
+            with pytest.raises(CanvasRegistryError, match="Failed to write registry"):
+                save_registry([_make_session()])
+        tmp_files = list(canvas_home.glob("registry.json.tmp.*"))
+        assert tmp_files == []
+
+
+class TestExplicitPaths:
+    def test_load_registry_with_explicit_paths(self, canvas_home: Path):
+        paths = resolve_paths(canvas_home=canvas_home)
+        registry_path = canvas_home / "registry.json"
+        data = {
+            "sessions": [
+                {"slug": "s1", "org": "acme", "created": "2026-01-01", "status": "active"}
+            ]
+        }
+        registry_path.write_text(json.dumps(data))
+        sessions = load_registry(paths=paths)
+        assert len(sessions) == 1
+        assert sessions[0].slug == "s1"
 
 
 class TestRoundTrip:

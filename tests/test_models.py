@@ -1,8 +1,14 @@
 """Tests for canvas.models — Session dataclass and SessionStatus."""
 
+import dataclasses
+import datetime
+
 import pytest
 
 from canvas.models import Session, SessionStatus
+
+_DATE = datetime.date(2026, 3, 18)
+_DATE2 = datetime.date(2026, 1, 1)
 
 
 class TestSessionStatus:
@@ -29,35 +35,38 @@ class TestSession:
         s = Session(
             slug="my-session",
             org="acme",
-            created="2026-03-18",
+            created=_DATE,
             status=SessionStatus.ACTIVE,
         )
         assert s.slug == "my-session"
         assert s.org == "acme"
-        assert s.created == "2026-03-18"
+        assert s.created == _DATE
         assert s.status == SessionStatus.ACTIVE
 
     def test_label_defaults_to_none(self):
-        s = Session(
-            slug="test", org="acme", created="2026-01-01", status=SessionStatus.ACTIVE
-        )
+        s = Session(slug="test", org="acme", created=_DATE2, status=SessionStatus.ACTIVE)
         assert s.label is None
 
     def test_label_can_be_set(self):
         s = Session(
             slug="test",
             org="acme",
-            created="2026-01-01",
+            created=_DATE2,
             status=SessionStatus.ACTIVE,
             label="My Label",
         )
         assert s.label == "My Label"
 
+    def test_frozen(self):
+        s = Session(slug="s", org="o", created=_DATE, status=SessionStatus.ACTIVE)
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            s.slug = "other"  # type: ignore[misc]
+
     def test_to_dict(self):
         s = Session(
             slug="my-session",
             org="acme",
-            created="2026-03-18",
+            created=_DATE,
             status=SessionStatus.ACTIVE,
             label="test label",
         )
@@ -71,9 +80,7 @@ class TestSession:
         }
 
     def test_to_dict_label_none(self):
-        s = Session(
-            slug="s", org="o", created="2026-01-01", status=SessionStatus.ARCHIVED
-        )
+        s = Session(slug="s", org="o", created=_DATE2, status=SessionStatus.ARCHIVED)
         d = s.to_dict()
         assert d["label"] is None
 
@@ -88,7 +95,7 @@ class TestSession:
         s = Session.from_dict(data)
         assert s.slug == "my-session"
         assert s.org == "acme"
-        assert s.created == "2026-03-18"
+        assert s.created == _DATE
         assert s.status == SessionStatus.ACTIVE
         assert s.label == "hello"
 
@@ -150,12 +157,22 @@ class TestSession:
         assert s.slug == "s"
         assert not hasattr(s, "unknown_field")
 
+    def test_equality(self):
+        a = Session(slug="s", org="o", created=_DATE, status=SessionStatus.ACTIVE)
+        b = Session(slug="s", org="o", created=_DATE, status=SessionStatus.ACTIVE)
+        assert a == b
+
+    def test_inequality(self):
+        a = Session(slug="s", org="o", created=_DATE, status=SessionStatus.ACTIVE)
+        b = Session(slug="s", org="o", created=_DATE, status=SessionStatus.ARCHIVED)
+        assert a != b
+
     def test_round_trip(self):
         """Session -> to_dict -> from_dict produces equal session."""
         original = Session(
             slug="round-trip",
             org="acme",
-            created="2026-06-15",
+            created=datetime.date(2026, 6, 15),
             status=SessionStatus.ACTIVE,
             label="roundtrip test",
         )
