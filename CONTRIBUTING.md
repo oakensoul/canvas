@@ -93,6 +93,13 @@ Common types:
 
 Scope examples: `cli`, `session`, `registry`, `config`, `template`, `api`.
 
+## AI Co-Authorship Policy
+
+Do **not** add `Co-Authored-By` trailers referencing AI tools (Claude,
+Copilot, ChatGPT, etc.) in commit messages. CI will reject PRs containing
+these trailers to avoid copyright and licensing ambiguity in this
+AGPL-licensed project.
+
 ## Pull Request Process
 
 1. Fill out the PR template completely.
