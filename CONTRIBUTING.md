@@ -93,12 +93,25 @@ Common types:
 
 Scope examples: `cli`, `session`, `registry`, `config`, `template`, `api`.
 
-## AI Co-Authorship Policy
+## AI Tools and Attribution
 
-Do **not** add `Co-Authored-By` trailers referencing AI tools (Claude,
-Copilot, ChatGPT, etc.) in commit messages. CI will reject PRs containing
-these trailers to avoid copyright and licensing ambiguity in this
-AGPL-licensed project.
+We welcome contributions made with the help of AI coding tools. However,
+**do not include AI attribution in commits or pull requests**:
+
+- No `Co-Authored-By` trailers referencing AI tools
+- No "Generated with", "Powered by", or "Assisted by" text in PR descriptions
+
+CI will automatically reject PRs that contain these patterns.
+
+**This is not an anti-AI policy.** It is a copyright protection measure. This
+project is licensed under AGPL-3.0-or-later, where clear copyright ownership
+matters for license enforcement. AI co-authorship trailers create legal
+ambiguity about who holds copyright over the contributed code. By keeping
+attribution exclusively with human contributors, we maintain unambiguous
+ownership and protect the integrity of the license.
+
+You are the author of your contributions, regardless of what tools you used to
+write them.
 
 ## Pull Request Process
 
