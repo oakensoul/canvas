@@ -22,6 +22,7 @@ def render_claude_md(
     paths: CanvasPaths | None = None,
     session_path: Path | None = None,
     date: datetime.date | None = None,
+    config: dict | None = None,
 ) -> str:
     """Render a CLAUDE.md file from the org's Jinja2 template.
 
@@ -33,6 +34,7 @@ def render_claude_md(
         {{ slug }}         - session slug
         {{ label }}        - session label (empty string if None)
         {{ session_path }} - absolute path to session directory (if provided)
+        {{ config }}       - raw config dict (empty dict if not provided)
 
     If *date* is ``None``, defaults to today.
 
@@ -46,12 +48,16 @@ def render_claude_md(
 
     if not template_path.exists():
         raise CanvasTemplateError(
-            f"No template found for org '{org}' at {template_path}"
+            f"No template found for org '{org}' at {template_path}.\n"
+            f"Create it with: mkdir -p {template_path.parent} && touch {template_path}"
         )
 
     try:
-        template_text = template_path.read_text()
-        template = jinja2.Template(template_text, undefined=jinja2.StrictUndefined)
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(str(template_path.parent), encoding="utf-8"),
+            undefined=jinja2.StrictUndefined,
+        )
+        template = env.get_template(template_path.name)
     except jinja2.TemplateSyntaxError as e:
         raise CanvasTemplateError(
             f"Syntax error in template for org '{org}': {e}"
@@ -64,8 +70,13 @@ def render_claude_md(
             slug=slug,
             label=label or "",
             session_path=str(session_path) if session_path else "",
+            config=config or {},
         )
     except jinja2.UndefinedError as e:
         raise CanvasTemplateError(
             f"Undefined variable in template for org '{org}': {e}"
+        ) from e
+    except jinja2.TemplateError as e:
+        raise CanvasTemplateError(
+            f"Template error for org '{org}': {e}"
         ) from e

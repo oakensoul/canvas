@@ -13,6 +13,7 @@ import dataclasses
 import datetime
 import json
 import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -32,7 +33,7 @@ def load_registry(paths: CanvasPaths | None = None) -> list[Session]:
         return []
 
     try:
-        data = json.loads(paths.registry.read_text())
+        data = json.loads(paths.registry.read_text(encoding="utf-8"))
         return [Session.from_dict(s) for s in data.get("sessions", [])]
     except (json.JSONDecodeError, ValueError, TypeError, AttributeError, KeyError) as e:
         raise CanvasRegistryError(
@@ -49,13 +50,19 @@ def save_registry(sessions: list[Session], paths: CanvasPaths | None = None) -> 
     paths.registry.parent.mkdir(parents=True, exist_ok=True)
 
     data = {"sessions": [s.to_dict() for s in sessions]}
-    tmp = paths.registry.with_suffix(f".tmp.{os.getpid()}")
+    fd, tmp_name = tempfile.mkstemp(
+        dir=paths.registry.parent, prefix="registry.json.tmp."
+    )
     try:
-        tmp.write_text(json.dumps(data, indent=2) + "\n")
-        tmp.replace(paths.registry)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(data, indent=2) + "\n")
+        os.replace(tmp_name, paths.registry)
     except OSError as e:
         # Clean up temp file on failure
-        tmp.unlink(missing_ok=True)
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
         raise CanvasRegistryError(f"Failed to write registry: {e}") from e
 
 
