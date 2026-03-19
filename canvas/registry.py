@@ -1,4 +1,11 @@
-"""Read/write ~/.canvas/registry.json."""
+"""Read/write ~/.canvas/registry.json.
+
+Note: Registry CRUD operations are not atomic across processes. The
+load -> check -> write pattern means concurrent processes could lose updates
+(a TOCTOU race). This is acceptable for a single-user CLI tool. If
+multi-process support is ever needed, consider ``fcntl.flock`` to serialize
+access to the registry file.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +18,7 @@ from canvas.config import CanvasPaths, resolve_paths
 from canvas.exceptions import CanvasRegistryError
 from canvas.models import Session, SessionStatus
 
-_MUTABLE_FIELDS = frozenset({"label", "status"})
+_MUTABLE_FIELDS = frozenset({"label", "status", "archived_at"})
 
 
 def load_registry(paths: CanvasPaths | None = None) -> list[Session]:

@@ -21,6 +21,7 @@ def render_claude_md(
     label: str | None = None,
     paths: CanvasPaths | None = None,
     session_path: Path | None = None,
+    date: datetime.date | None = None,
 ) -> str:
     """Render a CLAUDE.md file from the org's Jinja2 template.
 
@@ -32,6 +33,8 @@ def render_claude_md(
         {{ slug }}         - session slug
         {{ label }}        - session label (empty string if None)
         {{ session_path }} - absolute path to session directory (if provided)
+
+    If *date* is ``None``, defaults to today.
 
     Returns rendered string.
     Raises CanvasTemplateError if template missing or has syntax/render errors.
@@ -57,7 +60,7 @@ def render_claude_md(
     try:
         return template.render(
             org=org,
-            date=datetime.date.today().isoformat(),
+            date=(date or datetime.date.today()).isoformat(),
             slug=slug,
             label=label or "",
             session_path=str(session_path) if session_path else "",
