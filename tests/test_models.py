@@ -76,6 +76,7 @@ class TestSession:
             "org": "acme",
             "created": "2026-03-18",
             "label": "test label",
+            "archived_at": None,
             "status": "active",
         }
 
