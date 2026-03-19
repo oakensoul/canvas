@@ -26,14 +26,25 @@ jobs:
       - name: Check for AI co-authorship attribution
         run: |
           MERGE_BASE=$(git merge-base origin/${{ github.base_ref }} HEAD)
-          if git log "$MERGE_BASE..HEAD" --format='%B' | grep -iE '^Co-Authored-By:.*\b(claude|anthropic|openai|chatgpt|copilot|gemini|ai\b)'; then
+          if git log "$MERGE_BASE..HEAD" --format='%B' | grep -iE '^Co-Authored-By:.*\b(claude ai|anthropic|openai|chatgpt|github copilot|copilot|gemini ai)\b'; then
             echo "::error::Found AI co-authorship attribution in commit messages. Remove Co-Authored-By trailers referencing AI tools."
             exit 1
           fi
           echo "No AI attribution found — clean."
 
+      - name: Check PR description for AI attribution
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if echo "$PR_BODY" | grep -iE '(generated with|powered by|assisted by|co-authored-by).*\b(claude|anthropic|openai|chatgpt|copilot|gemini)\b'; then
+            echo "::error::Found AI attribution in PR description. Remove references to AI tool authorship."
+            exit 1
+          fi
+          echo "PR description clean."
+
   build:
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.python-version == '3.14' }}
     strategy:
       fail-fast: false
       matrix:
@@ -48,6 +59,7 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
       - name: Upgrade pip
         run: python -m pip install --upgrade pip

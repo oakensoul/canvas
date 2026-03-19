@@ -18,3 +18,4 @@ Brief description of what this PR does and why.
 - [ ] Commit messages follow Conventional Commits
 - [ ] Documentation updated if needed
 - [ ] CHANGELOG.md updated under `[Unreleased]`
+- [ ] No AI co-authorship attribution in commits or PR description

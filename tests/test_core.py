@@ -281,3 +281,14 @@ class TestRegistryOnlyCollision:
         # Same label should still collide via registry check
         with pytest.raises(CanvasSessionError, match="already exists"):
             new_session(label="orphan test", paths=paths)
+
+
+class TestMkdirOSError:
+    """OSError during mkdir is wrapped in CanvasSessionError."""
+
+    def test_mkdir_oserror_raises_session_error(self, full_env: CanvasPaths):
+        """OSError during mkdir is wrapped in CanvasSessionError."""
+        paths = full_env
+        with patch.object(Path, "mkdir", side_effect=OSError("Permission denied")):
+            with pytest.raises(CanvasSessionError, match="Failed to create session directory"):
+                new_session(label="oserror-test", paths=paths)

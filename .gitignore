@@ -24,7 +24,9 @@ htmlcov/
 *.token
 *_rsa
 *_dsa
-credentials*
+credentials.json
+credentials.yaml
+credentials.toml
 
 # OS files
 .DS_Store

@@ -13,7 +13,7 @@ format:
 	ruff format .
 
 test:
-	pytest
+	pytest --cov=canvas --cov-report=term-missing
 
 audit:
 	pip-audit
@@ -27,4 +27,4 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 
-check-all: lint test audit
+check-all: lint test audit build
