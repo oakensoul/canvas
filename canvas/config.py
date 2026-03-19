@@ -15,10 +15,18 @@ class CanvasPaths:
     """Centralized path resolution for all canvas directories and files."""
 
     home: Path              # ~/.canvas (or CANVAS_HOME)
-    config: Path            # home / "config"
+    config: Path            # home / "config.json"
     registry: Path          # home / "registry.json"
     sessions_dir: Path      # home / "sessions"
     template_base: Path     # ~/.dotfiles-private/canvas/orgs
+
+
+@dataclasses.dataclass(frozen=True)
+class CanvasConfig:
+    """Parsed canvas configuration."""
+
+    org: str
+    raw: dict
 
 
 def resolve_paths(
@@ -46,29 +54,38 @@ def resolve_paths(
 
     return CanvasPaths(
         home=canvas_home,
-        config=canvas_home / "config",
+        config=canvas_home / "config.json",
         registry=canvas_home / "registry.json",
         sessions_dir=canvas_home / "sessions",
         template_base=template_base,
     )
 
 
-def load_config(paths: CanvasPaths | None = None) -> dict:
+def load_config(paths: CanvasPaths | None = None) -> CanvasConfig:
     """Load canvas config from disk.
 
-    Returns dict with at minimum {"org": "..."}.
+    Returns CanvasConfig with at minimum org set.
     Raises CanvasConfigError if file missing or malformed.
     """
     if paths is None:
         paths = resolve_paths()
 
+    # Backward-compat check: legacy config file without .json extension
+    legacy_config = paths.home / "config"
+    if legacy_config.is_file() and not paths.config.exists():
+        raise CanvasConfigError(
+            f"Found legacy config file at {legacy_config}. "
+            f"Please rename it to config.json: mv {legacy_config} {paths.config}"
+        )
+
     if not paths.config.exists():
         raise CanvasConfigError(
-            f"Config not found at {paths.config}. Run `canvas init` to set up."
+            f"Config not found at {paths.config}.\n"
+            f"Create it with: echo '{{\"org\": \"YOUR_ORG\"}}' > {paths.config}"
         )
 
     try:
-        data = json.loads(paths.config.read_text())
+        data = json.loads(paths.config.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
         raise CanvasConfigError(
             f"Malformed config at {paths.config}: {e}"
@@ -79,4 +96,4 @@ def load_config(paths: CanvasPaths | None = None) -> dict:
             f"Config at {paths.config} missing required 'org' field."
         )
 
-    return data
+    return CanvasConfig(org=data["org"], raw=data)

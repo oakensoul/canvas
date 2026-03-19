@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 from canvas.config import CanvasPaths, load_config, resolve_paths
-from canvas.exceptions import CanvasError, CanvasSessionError
+from canvas.exceptions import CanvasError, CanvasRegistryError, CanvasSessionError
 from canvas.models import Session, SessionStatus
 from canvas.registry import (
     add_session,
@@ -17,7 +17,7 @@ from canvas.registry import (
     save_registry,
     update_session,
 )
-from canvas.slug import generate_slug
+from canvas.slug import generate_slug, validate_label
 from canvas.template import render_claude_md
 
 _MAX_RANDOM_SLUG_ATTEMPTS = 5
@@ -53,9 +53,11 @@ def new_session(
         paths = resolve_paths()
 
     # 2. Resolve org from config if not provided
+    config_raw: dict | None = None
     if org is None:
         config = load_config(paths)
-        org = config["org"]
+        org = config.org
+        config_raw = config.raw
 
     # 3. Capture today once to avoid date skew across midnight
     today = datetime.date.today()
@@ -85,7 +87,12 @@ def new_session(
     # 5. Create session directory, render CLAUDE.md, register session
     #    Wrap in try/except to clean up partial state on failure.
     session_dir = paths.sessions_dir / slug
-    session_dir.mkdir(parents=True)
+    try:
+        session_dir.mkdir(parents=True)
+    except OSError as e:
+        raise CanvasSessionError(
+            f"Failed to create session directory {session_dir}: {e}"
+        ) from e
 
     try:
         claude_md = render_claude_md(
@@ -95,8 +102,11 @@ def new_session(
             paths=paths,
             session_path=session_dir,
             date=today,
+            config=config_raw,
         )
-        (session_dir / "CLAUDE.md").write_text(claude_md)
+        if not claude_md.endswith("\n"):
+            claude_md += "\n"
+        (session_dir / "CLAUDE.md").write_text(claude_md, encoding="utf-8")
 
         session = Session(
             slug=slug,
@@ -144,7 +154,7 @@ def list_sessions(
     return sessions
 
 
-def archive_session(slug: str, paths: CanvasPaths | None = None) -> Session:
+def archive_session(slug: str, paths: CanvasPaths | None = None, date: datetime.date | None = None) -> Session:
     """Archive a session by setting status to ARCHIVED and archived_at to today.
 
     Directory is preserved. Raises CanvasSessionError if not found.
@@ -164,7 +174,7 @@ def archive_session(slug: str, paths: CanvasPaths | None = None) -> Session:
             slug,
             paths=paths,
             status=SessionStatus.ARCHIVED,
-            archived_at=datetime.date.today(),
+            archived_at=date or datetime.date.today(),
         )
     except CanvasError:
         raise
@@ -183,17 +193,20 @@ def nuke_session(slug: str, paths: CanvasPaths | None = None) -> None:
     if paths is None:
         paths = resolve_paths()
 
-    session = find_session(slug, paths=paths)
-    if session is None:
-        raise CanvasSessionError(f"Session '{slug}' not found.")
-
-    # Remove from registry first (orphaned dir is benign; orphaned registry entry is not)
-    remove_session(slug, paths=paths)
+    try:
+        remove_session(slug, paths=paths)
+    except CanvasRegistryError as e:
+        raise CanvasSessionError(f"Session '{slug}' not found.") from e
 
     # Remove directory if it exists
     session_dir = paths.sessions_dir / slug
     if session_dir.exists():
-        shutil.rmtree(session_dir)
+        try:
+            shutil.rmtree(session_dir)
+        except OSError as e:
+            raise CanvasSessionError(
+                f"Failed to remove session directory {session_dir}: {e}"
+            ) from e
 
 
 def rename_session(slug: str, label: str, paths: CanvasPaths | None = None) -> Session:
@@ -204,15 +217,66 @@ def rename_session(slug: str, label: str, paths: CanvasPaths | None = None) -> S
     if paths is None:
         paths = resolve_paths()
 
-    session = find_session(slug, paths)
-    if session is None:
-        raise CanvasSessionError(f"Session '{slug}' not found.")
+    validate_label(label)
 
     try:
         updated = update_session(slug, paths=paths, label=label)
+    except CanvasRegistryError as e:
+        raise CanvasSessionError(f"Session '{slug}' not found.") from e
+
+    return updated
+
+
+def reactivate_session(slug: str, paths: CanvasPaths | None = None) -> Session:
+    """Reactivate an archived session — set status to ACTIVE, clear archived_at.
+
+    Idempotent: if the session is already active, return it unchanged.
+    Raises CanvasSessionError if session not found.
+    """
+    if paths is None:
+        paths = resolve_paths()
+
+    session = find_session(slug, paths=paths)
+    if session is None:
+        raise CanvasSessionError(f"Session '{slug}' not found.")
+
+    if session.status == SessionStatus.ACTIVE:
+        return session
+
+    try:
+        updated = update_session(
+            slug,
+            paths=paths,
+            status=SessionStatus.ACTIVE,
+            archived_at=None,
+        )
     except CanvasError:
         raise
     except Exception as e:
-        raise CanvasSessionError(f"Failed to rename session '{slug}': {e}") from e
+        raise CanvasSessionError(f"Failed to reactivate session '{slug}': {e}") from e
 
     return updated
+
+
+def stale_sessions(
+    days: int = 30,
+    paths: CanvasPaths | None = None,
+    today: datetime.date | None = None,
+) -> list[Session]:
+    """Return active sessions older than *days* days.
+
+    Only considers sessions with status ACTIVE.
+    *today* can be injected for testing; defaults to datetime.date.today().
+    """
+    if paths is None:
+        paths = resolve_paths()
+
+    if today is None:
+        today = datetime.date.today()
+
+    cutoff = today - datetime.timedelta(days=days)
+    sessions = load_registry(paths)
+    return [
+        s for s in sessions
+        if s.status == SessionStatus.ACTIVE and s.created <= cutoff
+    ]

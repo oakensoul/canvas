@@ -175,6 +175,30 @@ _NOUNS = (
 )
 
 
+_LABEL_MAX_LENGTH = 60
+
+
+def _to_kebab(label: str) -> str:
+    """Convert a label to kebab-case, stripping non-alphanumeric characters."""
+    kebab = label.lower().strip()
+    kebab = re.sub(r"\s+", "-", kebab)
+    kebab = re.sub(r"[^a-z0-9-]", "-", kebab)
+    kebab = re.sub(r"-+", "-", kebab)
+    return kebab.strip("-")
+
+
+def validate_label(label: str) -> None:
+    """Validate that a label contains at least one alphanumeric character.
+
+    Raises :class:`~canvas.exceptions.CanvasSessionError` if the label is
+    empty, whitespace-only, or all punctuation.
+    """
+    if not _to_kebab(label):
+        raise CanvasSessionError(
+            "Label must contain at least one alphanumeric character"
+        )
+
+
 def generate_slug(label: str | None = None, date: datetime.date | None = None) -> str:
     """Generate a dated slug for a new session.
 
@@ -182,19 +206,15 @@ def generate_slug(label: str | None = None, date: datetime.date | None = None) -
     With label: YYYY-MM-DD-kebab-cased-label
 
     If *date* is ``None``, defaults to today.
+    The kebab-cased label is truncated to 60 characters before stripping
+    trailing hyphens.
     """
     date_str = (date or datetime.date.today()).isoformat()
 
     if label is not None:
-        kebab = label.lower().strip()
-        kebab = re.sub(r"\s+", "-", kebab)
-        kebab = re.sub(r"[^a-z0-9-]", "-", kebab)
-        kebab = re.sub(r"-+", "-", kebab)
-        kebab = kebab.strip("-")
-        if not kebab:
-            raise CanvasSessionError(
-                "Label must contain at least one alphanumeric character"
-            )
+        validate_label(label)
+        kebab = _to_kebab(label)
+        kebab = kebab[:_LABEL_MAX_LENGTH].strip("-")
         return f"{date_str}-{kebab}"
 
     adj = random.choice(_ADJECTIVES)
