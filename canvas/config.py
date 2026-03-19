@@ -64,7 +64,7 @@ def load_config(paths: CanvasPaths | None = None) -> dict:
 
     if not paths.config.exists():
         raise CanvasConfigError(
-            f"Config not found at {paths.config}. Run `loadout init` to set up."
+            f"Config not found at {paths.config}. Run `canvas init` to set up."
         )
 
     try:

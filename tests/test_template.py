@@ -137,16 +137,25 @@ class TestRenderClaudeMdSessionPath:
 class TestRenderClaudeMdUndefinedVariable:
     """Undefined variables in templates raise CanvasTemplateError."""
 
-    def test_undefined_variable_attribute_raises(self, template_env):
-        """Accessing an attribute on an undefined variable raises CanvasTemplateError."""
+    def test_undefined_variable_raises(self, template_env):
+        """Simple undefined variable raises CanvasTemplateError with StrictUndefined."""
         paths, template_base = template_env
         org_dir = template_base / "undef"
         org_dir.mkdir()
-        # Accessing .something on undefined triggers UndefinedError even with lenient undefined
-        (org_dir / "CLAUDE.md.tmpl").write_text("{{ nonexistent_var.attr }}")
+        (org_dir / "CLAUDE.md.tmpl").write_text("{{ nonexistent_var }}")
 
         with pytest.raises(CanvasTemplateError, match="Undefined variable"):
             render_claude_md(org="undef", slug="s", paths=paths)
+
+    def test_undefined_variable_attribute_raises(self, template_env):
+        """Accessing an attribute on an undefined variable raises CanvasTemplateError."""
+        paths, template_base = template_env
+        org_dir = template_base / "undef2"
+        org_dir.mkdir()
+        (org_dir / "CLAUDE.md.tmpl").write_text("{{ nonexistent_var.attr }}")
+
+        with pytest.raises(CanvasTemplateError, match="Undefined variable"):
+            render_claude_md(org="undef2", slug="s", paths=paths)
 
 
 class TestRenderClaudeMdMultipleOrgs:
