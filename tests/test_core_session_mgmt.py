@@ -99,26 +99,32 @@ class TestListSessions:
         result = list_sessions(status="active", org="nonexistent", paths=paths)
         assert result == []
 
+    def test_invalid_status_raises(self, paths, populated_registry):
+        with pytest.raises(CanvasSessionError, match="Invalid status"):
+            list_sessions(status="bogus", paths=paths)
+
 
 # ── archive_session ──
 
 
 class TestArchiveSession:
     def test_happy_path(self, paths, populated_registry):
+        today = datetime.date.today()
         result = archive_session("alpha", paths=paths)
         assert result.status == SessionStatus.ARCHIVED
-        assert result.archived_at == datetime.date.today()
+        assert result.archived_at == today
         assert result.slug == "alpha"
         # Verify persisted
         sessions = load_registry(paths)
         alpha = next(s for s in sessions if s.slug == "alpha")
         assert alpha.status == SessionStatus.ARCHIVED
-        assert alpha.archived_at == datetime.date.today()
+        assert alpha.archived_at == today
 
     def test_already_archived_is_idempotent(self, paths, populated_registry):
         result = archive_session("beta", paths=paths)
         assert result.status == SessionStatus.ARCHIVED
-        assert result.archived_at == datetime.date.today()
+        # Original archived_at preserved (not overwritten with today)
+        assert result.archived_at == datetime.date(2026, 2, 1)
 
     def test_not_found(self, paths, populated_registry):
         with pytest.raises(CanvasSessionError, match="not found"):

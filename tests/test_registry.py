@@ -173,6 +173,40 @@ class TestCRUDCycle:
         with pytest.raises(CanvasRegistryError, match="Invalid status value"):
             update_session("test-session", status="bogus")
 
+    def test_update_status_from_string(self, canvas_home: Path):
+        """update_session accepts status as a plain string and coerces to SessionStatus."""
+        add_session(_make_session(slug="string-status"))
+        updated = update_session("string-status", status="archived")
+        assert updated.status == SessionStatus.ARCHIVED
+        assert isinstance(updated.status, SessionStatus)
+
+    def test_update_archived_at_from_string(self, canvas_home: Path):
+        """update_session coerces string archived_at to datetime.date."""
+        session = Session(
+            slug="date-coerce",
+            org="acme",
+            created=datetime.date(2026, 1, 1),
+            status=SessionStatus.ACTIVE,
+            label="Date Coerce",
+        )
+        add_session(session)
+        updated = update_session("date-coerce", archived_at="2026-04-01")
+        assert updated.archived_at == datetime.date(2026, 4, 1)
+        assert isinstance(updated.archived_at, datetime.date)
+
+    def test_update_archived_at_invalid_string_raises(self, canvas_home: Path):
+        """update_session raises CanvasRegistryError for invalid archived_at string."""
+        session = Session(
+            slug="bad-date",
+            org="acme",
+            created=datetime.date(2026, 1, 1),
+            status=SessionStatus.ACTIVE,
+            label="Bad Date",
+        )
+        add_session(session)
+        with pytest.raises(CanvasRegistryError, match="Invalid archived_at"):
+            update_session("bad-date", archived_at="not-a-date")
+
     def test_full_crud_cycle(self, canvas_home: Path):
         """Add -> find -> update -> remove -> verify removed."""
         session = _make_session(slug="lifecycle")
