@@ -20,6 +20,7 @@ class Session:
     created: datetime.date
     status: SessionStatus
     label: str | None = None
+    archived_at: datetime.date | None = None
 
     def to_dict(self) -> dict[str, str | None]:
         return {
@@ -27,6 +28,7 @@ class Session:
             "org": self.org,
             "created": self.created.isoformat(),
             "label": self.label,
+            "archived_at": self.archived_at.isoformat() if self.archived_at else None,
             "status": str(self.status),
         }
 
@@ -43,10 +45,19 @@ class Session:
         except (ValueError, TypeError) as e:
             raise ValueError(f"Invalid 'created' date: {e}") from e
 
+        # Parse optional archived_at date
+        archived_at = None
+        if data.get("archived_at"):
+            try:
+                archived_at = datetime.date.fromisoformat(data["archived_at"])  # type: ignore[arg-type]
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Invalid 'archived_at' date: {e}") from e
+
         return cls(
             slug=data["slug"],  # type: ignore[arg-type]
             org=data["org"],  # type: ignore[arg-type]
             created=created,
             status=SessionStatus(data["status"]),  # type: ignore[arg-type]
             label=data.get("label"),  # type: ignore[arg-type]
+            archived_at=archived_at,
         )
