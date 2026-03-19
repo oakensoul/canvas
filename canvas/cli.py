@@ -41,3 +41,10 @@ def nuke(slug: str) -> None:
 def rename(slug: str, label: str) -> None:
     """Rename a canvas session."""
     raise NotImplementedError
+
+
+@cli.command()
+@click.argument("slug")
+def open(slug: str) -> None:
+    """Re-open an existing canvas session and launch claude."""
+    raise NotImplementedError

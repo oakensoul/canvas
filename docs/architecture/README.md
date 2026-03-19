@@ -111,10 +111,12 @@ No env vars, no flags, no detection logic. The config is user-scoped — `gunnar
 
 Slugs follow the pattern `<YYYY-MM-DD>-<word>-<word>`:
 
+- **No label**: `2026-03-18-electric-penguin` — random adjective + noun
+- **With label**: `2026-03-18-okr-planning` — label is kebab-cased into the slug
 - Date prefix makes them sortable chronologically
 - Random words make them memorable and visually distinct
-- Label is optional — stored separately, doesn't rename the directory
-- Slugs are stable identifiers; labels are human display names
+- When a label is provided, the original text is stored in the registry for display
+- Slugs are permanent identifiers — `canvas rename` changes the label, never the slug or directory
 
 ---
 
