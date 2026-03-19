@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,9 +8,26 @@ version = "0.1.0"
 description = "CLI + library for managing ephemeral org-aware Claude Code workspaces"
 requires-python = ">=3.11"
 dependencies = [
-    "click",
-    "rich",
+    "click>=8.0",
+    "rich>=13.0",
+    "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
 ]
 
 [project.scripts]
 canvas = "canvas.cli:cli"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers --tb=short"
+
+[tool.coverage.run]
+source = ["canvas"]
+
+[tool.coverage.report]
+show_missing = true

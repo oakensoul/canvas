@@ -28,6 +28,9 @@ canvas nuke <slug>
 
 # Rename a session
 canvas rename <slug> <label>
+
+# Re-enter an existing session
+canvas open <slug>
 ```
 
 ## Configuration
@@ -40,4 +43,13 @@ Canvas reads its config from `~/.canvas/config`:
 }
 ```
 
-Sessions are tracked in `~/.canvas/registry.json` and live at `~/canvas/<slug>/`.
+### `CANVAS_HOME`
+
+By default, Canvas stores all data under `~/.canvas/`. You can override this by
+setting the `CANVAS_HOME` environment variable:
+
+```bash
+export CANVAS_HOME="$HOME/.canvas"
+```
+
+Sessions are tracked in `~/.canvas/registry.json` and live at `~/.canvas/sessions/<slug>/`.
