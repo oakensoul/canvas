@@ -10,6 +10,8 @@ from canvas.config import CanvasPaths, resolve_paths
 from canvas.exceptions import CanvasRegistryError
 from canvas.models import Session
 
+_IMMUTABLE_FIELDS = frozenset({"slug", "org", "created"})
+
 
 def load_registry(paths: CanvasPaths | None = None) -> list[Session]:
     """Load session registry from disk. Returns [] if file missing (first-run bootstrap)."""
@@ -22,8 +24,11 @@ def load_registry(paths: CanvasPaths | None = None) -> list[Session]:
     try:
         data = json.loads(paths.registry.read_text())
         return [Session.from_dict(s) for s in data.get("sessions", [])]
-    except (json.JSONDecodeError, KeyError, ValueError) as e:
-        raise CanvasRegistryError(f"Corrupt registry at {paths.registry}: {e}") from e
+    except (json.JSONDecodeError, ValueError) as e:
+        raise CanvasRegistryError(
+            f"Corrupt registry at {paths.registry}: {e}\n"
+            "You can delete this file and canvas will start fresh."
+        ) from e
 
 
 def save_registry(sessions: list[Session], paths: CanvasPaths | None = None) -> None:
@@ -45,8 +50,12 @@ def save_registry(sessions: list[Session], paths: CanvasPaths | None = None) -> 
 
 
 def add_session(session: Session, paths: CanvasPaths | None = None) -> None:
-    """Add a session to the registry."""
+    """Add a session to the registry. Raises if slug already exists."""
     sessions = load_registry(paths)
+    if any(s.slug == session.slug for s in sessions):
+        raise CanvasRegistryError(
+            f"Session '{session.slug}' already exists in registry."
+        )
     sessions.append(session)
     save_registry(sessions, paths)
 
@@ -60,15 +69,20 @@ def find_session(slug: str, paths: CanvasPaths | None = None) -> Session | None:
     return None
 
 
-def update_session(slug: str, paths: CanvasPaths | None = None, **fields) -> Session:
+def update_session(slug: str, paths: CanvasPaths | None = None, **fields: str) -> Session:
     """Update fields on a session. Returns the updated session.
 
-    Raises CanvasRegistryError if slug not found.
+    Only `label` and `status` can be updated. `slug`, `org`, and `created` are immutable.
+    Raises CanvasRegistryError if slug not found or field is invalid/immutable.
     """
     sessions = load_registry(paths)
     for i, s in enumerate(sessions):
         if s.slug == slug:
             for key, value in fields.items():
+                if key in _IMMUTABLE_FIELDS:
+                    raise CanvasRegistryError(
+                        f"Field '{key}' is immutable and cannot be updated."
+                    )
                 if not hasattr(s, key):
                     raise CanvasRegistryError(f"Session has no field '{key}'")
                 setattr(s, key, value)

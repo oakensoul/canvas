@@ -109,12 +109,12 @@ class TestSession:
             "created": "not-a-date",
             "status": "active",
         }
-        with pytest.raises(ValueError, match="Invalid or missing 'created' date"):
+        with pytest.raises(ValueError, match="Invalid 'created' date"):
             Session.from_dict(data)
 
     def test_from_dict_missing_created(self):
         data = {"slug": "s", "org": "o", "status": "active"}
-        with pytest.raises(ValueError, match="Invalid or missing 'created' date"):
+        with pytest.raises(ValueError, match="Missing required field 'created'"):
             Session.from_dict(data)
 
     def test_from_dict_invalid_status(self):
@@ -129,8 +129,26 @@ class TestSession:
 
     def test_from_dict_missing_slug(self):
         data = {"org": "o", "created": "2026-01-01", "status": "active"}
-        with pytest.raises(KeyError):
+        with pytest.raises(ValueError, match="Missing required field 'slug'"):
             Session.from_dict(data)
+
+    def test_from_dict_missing_org(self):
+        data = {"slug": "s", "created": "2026-01-01", "status": "active"}
+        with pytest.raises(ValueError, match="Missing required field 'org'"):
+            Session.from_dict(data)
+
+    def test_from_dict_extra_unknown_fields_ignored(self):
+        data = {
+            "slug": "s",
+            "org": "o",
+            "created": "2026-01-01",
+            "status": "active",
+            "label": None,
+            "unknown_field": "should be ignored",
+        }
+        s = Session.from_dict(data)
+        assert s.slug == "s"
+        assert not hasattr(s, "unknown_field")
 
     def test_round_trip(self):
         """Session -> to_dict -> from_dict produces equal session."""

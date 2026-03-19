@@ -95,6 +95,32 @@ class TestLoadConfig:
         assert result == config_data
 
 
+class TestResolvePathsTemplateBase:
+    """Tests for template_base resolution in resolve_paths()."""
+
+    def test_explicit_template_base(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("CANVAS_HOME", raising=False)
+        monkeypatch.delenv("CANVAS_TEMPLATE_BASE", raising=False)
+        custom = tmp_path / "my-templates"
+        paths = resolve_paths(canvas_home=tmp_path, template_base=custom)
+        assert paths.template_base == custom
+
+    def test_template_base_env_var(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("CANVAS_HOME", raising=False)
+        env_path = tmp_path / "env-templates"
+        monkeypatch.setenv("CANVAS_TEMPLATE_BASE", str(env_path))
+        paths = resolve_paths(canvas_home=tmp_path)
+        assert paths.template_base == env_path
+
+    def test_explicit_template_base_overrides_env(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("CANVAS_HOME", raising=False)
+        env_path = tmp_path / "env-templates"
+        monkeypatch.setenv("CANVAS_TEMPLATE_BASE", str(env_path))
+        explicit = tmp_path / "explicit-templates"
+        paths = resolve_paths(canvas_home=tmp_path, template_base=explicit)
+        assert paths.template_base == explicit
+
+
 class TestCanvasPathsFrozen:
     """Tests for CanvasPaths immutability."""
 

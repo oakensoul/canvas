@@ -96,15 +96,57 @@ class TestRenderClaudeMdLabelNone:
 
         assert "Label: unlabeled" in result
 
-    def test_label_none_default_renders_as_none(self, template_env):
+    def test_label_none_default_renders_as_empty(self, template_env):
         paths, template_base = template_env
         org_dir = template_base / "testorg2"
         org_dir.mkdir()
-        (org_dir / "CLAUDE.md.tmpl").write_text("Label: {{ label }}")
+        (org_dir / "CLAUDE.md.tmpl").write_text("Label: [{{ label }}]")
 
         result = render_claude_md(org="testorg2", slug="s", paths=paths)
 
-        assert "Label: None" in result
+        assert "Label: []" in result
+
+
+class TestRenderClaudeMdSessionPath:
+    """session_path variable is available in templates."""
+
+    def test_session_path_rendered(self, template_env):
+        paths, template_base = template_env
+        org_dir = template_base / "pathorg"
+        org_dir.mkdir()
+        (org_dir / "CLAUDE.md.tmpl").write_text("Path: {{ session_path }}")
+
+        result = render_claude_md(
+            org="pathorg", slug="s", paths=paths,
+            session_path=Path("/tmp/sessions/my-session"),
+        )
+
+        assert "Path: /tmp/sessions/my-session" in result
+
+    def test_session_path_none_renders_empty(self, template_env):
+        paths, template_base = template_env
+        org_dir = template_base / "pathorg2"
+        org_dir.mkdir()
+        (org_dir / "CLAUDE.md.tmpl").write_text("Path: [{{ session_path }}]")
+
+        result = render_claude_md(org="pathorg2", slug="s", paths=paths)
+
+        assert "Path: []" in result
+
+
+class TestRenderClaudeMdUndefinedVariable:
+    """Undefined variables in templates raise CanvasTemplateError."""
+
+    def test_undefined_variable_attribute_raises(self, template_env):
+        """Accessing an attribute on an undefined variable raises CanvasTemplateError."""
+        paths, template_base = template_env
+        org_dir = template_base / "undef"
+        org_dir.mkdir()
+        # Accessing .something on undefined triggers UndefinedError even with lenient undefined
+        (org_dir / "CLAUDE.md.tmpl").write_text("{{ nonexistent_var.attr }}")
+
+        with pytest.raises(CanvasTemplateError, match="Undefined variable"):
+            render_claude_md(org="undef", slug="s", paths=paths)
 
 
 class TestRenderClaudeMdMultipleOrgs:
