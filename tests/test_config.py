@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Oakensoul Studios LLC
+# SPDX-FileCopyrightText: 2025 Robert Gunnar Johnson Jr.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Tests for canvas.config module."""
@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from canvas.config import CanvasConfig, CanvasPaths, load_config, resolve_paths
+from canvas.config import CanvasConfig, load_config, resolve_paths
 from canvas.exceptions import CanvasConfigError
 
 
@@ -139,7 +139,9 @@ class TestResolvePathsTemplateBase:
         paths = resolve_paths(canvas_home=tmp_path)
         assert paths.template_base == env_path
 
-    def test_explicit_template_base_overrides_env(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_explicit_template_base_overrides_env(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.delenv("CANVAS_HOME", raising=False)
         env_path = tmp_path / "env-templates"
         monkeypatch.setenv("CANVAS_TEMPLATE_BASE", str(env_path))

@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "CLI + library for managing ephemeral org-aware Claude Code workspaces"
 license = "AGPL-3.0-or-later"
 authors = [
-    {name = "Oakensoul Studios LLC", email = "github@oakensoul.com"},
+    {name = "Robert Gunnar Johnson Jr.", email = "github@oakensoul.com"},
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -29,12 +29,12 @@ dependencies = [
 dev = [
     "build>=1.0",
     "cyclonedx-bom>=4.0",
-    "mypy>=1.10",
+    "mypy>=1.10,<2.0",
     "pip-audit>=2.7",
     "pre-commit>=3.0",
     "pytest>=8.0",
     "pytest-cov>=5.0",
-    "ruff>=0.11",
+    "ruff>=0.11,<1.0",
     "twine>=5.0",
 ]
 

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Oakensoul Studios LLC
+# SPDX-FileCopyrightText: 2025 Robert Gunnar Johnson Jr.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """CLAUDE.md rendering from org template.
@@ -16,6 +16,7 @@ import jinja2
 
 from canvas.config import CanvasPaths, resolve_paths
 from canvas.exceptions import CanvasTemplateError
+from canvas.slug import validate_org
 
 
 def render_claude_md(
@@ -25,7 +26,7 @@ def render_claude_md(
     paths: CanvasPaths | None = None,
     session_path: Path | None = None,
     date: datetime.date | None = None,
-    config: dict | None = None,
+    config: dict[str, object] | None = None,
 ) -> str:
     """Render a CLAUDE.md file from the org's Jinja2 template.
 
@@ -47,7 +48,16 @@ def render_claude_md(
     if paths is None:
         paths = resolve_paths()
 
+    validate_org(org)
+
     template_path = paths.template_base / org / "CLAUDE.md.tmpl"
+
+    if template_path.exists() and not template_path.resolve().is_relative_to(
+        paths.template_base.resolve()
+    ):
+        raise CanvasTemplateError(
+            f"Template path for org '{org}' resolves outside template base — refusing to load."
+        )
 
     if not template_path.exists():
         raise CanvasTemplateError(
@@ -56,15 +66,13 @@ def render_claude_md(
         )
 
     try:
-        env = jinja2.Environment(
+        env = jinja2.Environment(  # noqa: S701 — templates are user-controlled markdown, not HTML
             loader=jinja2.FileSystemLoader(str(template_path.parent), encoding="utf-8"),
             undefined=jinja2.StrictUndefined,
         )
         template = env.get_template(template_path.name)
     except jinja2.TemplateSyntaxError as e:
-        raise CanvasTemplateError(
-            f"Syntax error in template for org '{org}': {e}"
-        ) from e
+        raise CanvasTemplateError(f"Syntax error in template for org '{org}': {e}") from e
 
     try:
         return template.render(
@@ -76,10 +84,6 @@ def render_claude_md(
             config=config or {},
         )
     except jinja2.UndefinedError as e:
-        raise CanvasTemplateError(
-            f"Undefined variable in template for org '{org}': {e}"
-        ) from e
+        raise CanvasTemplateError(f"Undefined variable in template for org '{org}': {e}") from e
     except jinja2.TemplateError as e:
-        raise CanvasTemplateError(
-            f"Template error for org '{org}': {e}"
-        ) from e
+        raise CanvasTemplateError(f"Template error for org '{org}': {e}") from e

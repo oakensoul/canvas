@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Oakensoul Studios LLC
+# SPDX-FileCopyrightText: 2025 Robert Gunnar Johnson Jr.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Data models for canvas sessions."""
@@ -27,7 +27,7 @@ class Session:
     status: SessionStatus
     label: str | None = None
     archived_at: datetime.date | None = None
-    extra: dict = dataclasses.field(default_factory=dict)
+    extra: dict[str, object] = dataclasses.field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         result = dict(self.extra)
@@ -59,7 +59,7 @@ class Session:
 
         # Validate and parse created date
         try:
-            created = datetime.date.fromisoformat(data["created"])  # type: ignore[arg-type]
+            created = datetime.date.fromisoformat(data["created"])
         except (ValueError, TypeError) as e:
             raise ValueError(f"Invalid 'created' date: {e}") from e
 
@@ -67,7 +67,7 @@ class Session:
         archived_at = None
         if data.get("archived_at"):
             try:
-                archived_at = datetime.date.fromisoformat(data["archived_at"])  # type: ignore[arg-type]
+                archived_at = datetime.date.fromisoformat(data["archived_at"])
             except (ValueError, TypeError) as e:
                 raise ValueError(f"Invalid 'archived_at' date: {e}") from e
 
@@ -75,11 +75,11 @@ class Session:
         extra = {k: v for k, v in data.items() if k not in _KNOWN_FIELDS}
 
         return cls(
-            slug=data["slug"],  # type: ignore[arg-type]
-            org=data["org"],  # type: ignore[arg-type]
+            slug=data["slug"],
+            org=data["org"],
             created=created,
-            status=SessionStatus(data["status"]),  # type: ignore[arg-type]
-            label=data.get("label"),  # type: ignore[arg-type]
+            status=SessionStatus(data["status"]),
+            label=data.get("label"),
             archived_at=archived_at,
             extra=extra,
         )

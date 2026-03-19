@@ -9,6 +9,10 @@ permissions:
   contents: write
   id-token: write  # Required for PyPI trusted publishing (OIDC)
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -42,7 +46,7 @@ jobs:
         run: twine check dist/*
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@c95fe4860a8c4cecad1a0e1a46aad5fe8b78cdba
+        uses: softprops/action-gh-release@c95fe4860a8c4cecad1a0e1a46aad5fe8b78cdba # v2
         with:
           generate_release_notes: true
           files: |

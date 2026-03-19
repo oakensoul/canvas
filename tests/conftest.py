@@ -1,11 +1,11 @@
-# SPDX-FileCopyrightText: 2025 Oakensoul Studios LLC
+# SPDX-FileCopyrightText: 2025 Robert Gunnar Johnson Jr.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import dataclasses
 import json
+from pathlib import Path
 
 import pytest
-from pathlib import Path
 
 from canvas.config import CanvasPaths, resolve_paths
 

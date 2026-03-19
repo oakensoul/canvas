@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Oakensoul Studios LLC
+# SPDX-FileCopyrightText: 2025 Robert Gunnar Johnson Jr.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Tests for canvas.core — new_session orchestration and slug collision retry."""
@@ -16,8 +16,8 @@ import pytest
 from canvas.config import CanvasPaths, resolve_paths
 from canvas.core import new_session
 from canvas.exceptions import CanvasConfigError, CanvasSessionError, CanvasTemplateError
-from canvas.models import Session, SessionStatus
-from canvas.registry import add_session, find_session, remove_session
+from canvas.models import SessionStatus
+from canvas.registry import find_session
 from canvas.slug import generate_slug
 
 
@@ -114,7 +114,7 @@ class TestSlugCollisionLabelRegistry:
     def test_label_collision_in_registry_raises(self, full_env: CanvasPaths):
         paths = full_env
         # Create a first session with a label
-        s1 = new_session(label="my feature", paths=paths)
+        new_session(label="my feature", paths=paths)
 
         # Same label on the same day -> same slug -> collision
         with pytest.raises(CanvasSessionError, match="already exists"):
@@ -156,8 +156,10 @@ class TestRandomSlugCollisionRetry:
                 return colliding_slug
             return unique_slug
 
-        with patch("canvas.core.generate_slug", side_effect=mock_generate_slug), \
-             patch("canvas.core.datetime") as mock_dt:
+        with (
+            patch("canvas.core.generate_slug", side_effect=mock_generate_slug),
+            patch("canvas.core.datetime") as mock_dt,
+        ):
             mock_dt.date.today.return_value = fixed_date
             mock_dt.date.side_effect = lambda *a, **kw: datetime.date(*a, **kw)
             session = new_session(paths=paths)
@@ -180,8 +182,10 @@ class TestRandomSlugExhaustsRetries:
         def mock_generate_slug(label=None, date=None):
             return colliding_slug
 
-        with patch("canvas.core.generate_slug", side_effect=mock_generate_slug), \
-             patch("canvas.core.datetime") as mock_dt:
+        with (
+            patch("canvas.core.generate_slug", side_effect=mock_generate_slug),
+            patch("canvas.core.datetime") as mock_dt,
+        ):
             mock_dt.date.today.return_value = fixed_date
             mock_dt.date.side_effect = lambda *a, **kw: datetime.date(*a, **kw)
             with pytest.raises(CanvasSessionError, match="Failed to generate a unique slug"):
@@ -258,9 +262,11 @@ class TestPartialFailureCleanup:
     def test_registry_error_cleans_up_directory(self, full_env: CanvasPaths):
         paths = full_env
         # Mock add_session to fail after directory + CLAUDE.md are created
-        with patch("canvas.core.add_session", side_effect=RuntimeError("boom")):
-            with pytest.raises(RuntimeError, match="boom"):
-                new_session(paths=paths)
+        with (
+            patch("canvas.core.add_session", side_effect=RuntimeError("boom")),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            new_session(paths=paths)
 
         # Verify no orphaned session directories were left behind
         session_dirs = list(paths.sessions_dir.iterdir())
@@ -289,6 +295,8 @@ class TestMkdirOSError:
     def test_mkdir_oserror_raises_session_error(self, full_env: CanvasPaths):
         """OSError during mkdir is wrapped in CanvasSessionError."""
         paths = full_env
-        with patch.object(Path, "mkdir", side_effect=OSError("Permission denied")):
-            with pytest.raises(CanvasSessionError, match="Failed to create session directory"):
-                new_session(label="oserror-test", paths=paths)
+        with (
+            patch.object(Path, "mkdir", side_effect=OSError("Permission denied")),
+            pytest.raises(CanvasSessionError, match="Failed to create session directory"),
+        ):
+            new_session(label="oserror-test", paths=paths)

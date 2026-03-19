@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Oakensoul Studios LLC
+# SPDX-FileCopyrightText: 2025 Robert Gunnar Johnson Jr.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Core library — importable by AIDA plugin."""
@@ -17,22 +17,30 @@ from canvas.registry import (
     find_session,
     load_registry,
     remove_session,
-    save_registry,
     update_session,
 )
-from canvas.slug import generate_slug, validate_label
+from canvas.slug import generate_slug, validate_label, validate_org, validate_slug
 from canvas.template import render_claude_md
 
 _MAX_RANDOM_SLUG_ATTEMPTS = 5
+
+
+def _verify_inside_sessions_dir(session_dir: Path, sessions_dir: Path) -> None:
+    """Verify that *session_dir* resolves inside *sessions_dir*.
+
+    Raises CanvasSessionError if the resolved path escapes (e.g. via symlink).
+    """
+    if not session_dir.resolve().is_relative_to(sessions_dir.resolve()):
+        raise CanvasSessionError(
+            f"Session directory {session_dir} resolves outside sessions dir — refusing to proceed."
+        )
 
 
 def _slug_exists(slug: str, sessions_dir: Path, paths: CanvasPaths) -> bool:
     """Check for slug collision in both registry and on disk."""
     if find_session(slug, paths=paths) is not None:
         return True
-    if (sessions_dir / slug).exists():
-        return True
-    return False
+    return bool((sessions_dir / slug).exists())
 
 
 def new_session(
@@ -50,17 +58,24 @@ def new_session(
     5. Create session directory, render CLAUDE.md, register in registry
        (with cleanup on partial failure)
     6. Return Session object
+
+    .. note:: TOCTOU — The check-then-create sequence (slug collision check →
+       mkdir) is not atomic.  This is acceptable because canvas targets
+       single-user, local-filesystem usage where concurrent session creation
+       is not expected.
     """
     # 1. Resolve paths
     if paths is None:
         paths = resolve_paths()
 
     # 2. Resolve org from config if not provided
-    config_raw: dict | None = None
+    config_raw: dict[str, object] | None = None
     if org is None:
         config = load_config(paths)
         org = config.org
         config_raw = config.raw
+
+    validate_org(org)
 
     # 3. Capture today once to avoid date skew across midnight
     today = datetime.date.today()
@@ -84,18 +99,19 @@ def new_session(
         slug = generate_slug(label, date=today)
         if _slug_exists(slug, paths.sessions_dir, paths):
             raise CanvasSessionError(
-                f"Session '{slug}' already exists for today. Choose a different label or try again tomorrow."
+                f"Session '{slug}' already exists for today. "
+                "Choose a different label or try again tomorrow."
             )
 
     # 5. Create session directory, render CLAUDE.md, register session
     #    Wrap in try/except to clean up partial state on failure.
     session_dir = paths.sessions_dir / slug
     try:
-        session_dir.mkdir(parents=True)
+        session_dir.mkdir(parents=True, mode=0o700)
     except OSError as e:
-        raise CanvasSessionError(
-            f"Failed to create session directory {session_dir}: {e}"
-        ) from e
+        raise CanvasSessionError(f"Failed to create session directory {session_dir}: {e}") from e
+
+    _verify_inside_sessions_dir(session_dir, paths.sessions_dir)
 
     try:
         claude_md = render_claude_md(
@@ -142,9 +158,7 @@ def list_sessions(
             status = SessionStatus(status)
         except ValueError as e:
             valid = ", ".join(s.value for s in SessionStatus)
-            raise CanvasSessionError(
-                f"Invalid status '{status}'. Valid values: {valid}"
-            ) from e
+            raise CanvasSessionError(f"Invalid status '{status}'. Valid values: {valid}") from e
 
     sessions = load_registry(paths)
 
@@ -157,13 +171,17 @@ def list_sessions(
     return sessions
 
 
-def archive_session(slug: str, paths: CanvasPaths | None = None, date: datetime.date | None = None) -> Session:
+def archive_session(
+    slug: str, paths: CanvasPaths | None = None, date: datetime.date | None = None
+) -> Session:
     """Archive a session by setting status to ARCHIVED and archived_at to today.
 
     Directory is preserved. Raises CanvasSessionError if not found.
     """
     if paths is None:
         paths = resolve_paths()
+
+    validate_slug(slug)
 
     session = find_session(slug, paths=paths)
     if session is None:
@@ -196,6 +214,8 @@ def nuke_session(slug: str, paths: CanvasPaths | None = None) -> None:
     if paths is None:
         paths = resolve_paths()
 
+    validate_slug(slug)
+
     try:
         remove_session(slug, paths=paths)
     except CanvasRegistryError as e:
@@ -204,6 +224,7 @@ def nuke_session(slug: str, paths: CanvasPaths | None = None) -> None:
     # Remove directory if it exists
     session_dir = paths.sessions_dir / slug
     if session_dir.exists():
+        _verify_inside_sessions_dir(session_dir, paths.sessions_dir)
         try:
             shutil.rmtree(session_dir)
         except OSError as e:
@@ -220,6 +241,7 @@ def rename_session(slug: str, label: str, paths: CanvasPaths | None = None) -> S
     if paths is None:
         paths = resolve_paths()
 
+    validate_slug(slug)
     validate_label(label)
 
     try:
@@ -238,6 +260,8 @@ def reactivate_session(slug: str, paths: CanvasPaths | None = None) -> Session:
     """
     if paths is None:
         paths = resolve_paths()
+
+    validate_slug(slug)
 
     session = find_session(slug, paths=paths)
     if session is None:
@@ -279,7 +303,4 @@ def stale_sessions(
 
     cutoff = today - datetime.timedelta(days=days)
     sessions = load_registry(paths)
-    return [
-        s for s in sessions
-        if s.status == SessionStatus.ACTIVE and s.created <= cutoff
-    ]
+    return [s for s in sessions if s.status == SessionStatus.ACTIVE and s.created <= cutoff]
