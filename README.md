@@ -53,3 +53,8 @@ export CANVAS_HOME="$HOME/.canvas"
 ```
 
 Sessions are tracked in `~/.canvas/registry.json` and live at `~/.canvas/sessions/<slug>/`.
+
+## License
+
+Licensed under [AGPL-3.0-or-later](LICENSE). See [SECURITY.md](SECURITY.md)
+for vulnerability reporting.

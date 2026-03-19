@@ -14,3 +14,20 @@ venv/
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+
+# Secrets & credentials
+.env
+.env.*
+*.pem
+*.key
+*.secret
+*.token
+*_rsa
+*_dsa
+credentials.json
+credentials.yaml
+credentials.toml
+
+# OS files
+.DS_Store
+Thumbs.db

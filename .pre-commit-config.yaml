@@ -1,0 +1,19 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: d119aaff6891558b6eaf52518386871d1d267131 # v0.11.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: f40886d54c729f533f864ed6ce584e920feb0af7 # v1.15.0
+    hooks:
+      - id: mypy
+        # Keep in sync with [project] dependencies in pyproject.toml
+        additional_dependencies:
+          - click>=8.0
+          - rich>=13.0
+          - jinja2>=3.1
+        args: [canvas]
+        pass_filenames: false

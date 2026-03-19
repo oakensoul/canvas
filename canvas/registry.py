@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Robert Gunnar Johnson Jr.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Read/write ~/.canvas/registry.json.
 
 Note: Registry CRUD operations are not atomic across processes. The
@@ -9,12 +12,12 @@ access to the registry file.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import datetime
 import json
 import os
 import tempfile
-from pathlib import Path
 from typing import Any
 
 from canvas.config import CanvasPaths, resolve_paths
@@ -47,22 +50,18 @@ def save_registry(sessions: list[Session], paths: CanvasPaths | None = None) -> 
     if paths is None:
         paths = resolve_paths()
 
-    paths.registry.parent.mkdir(parents=True, exist_ok=True)
+    paths.registry.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
 
     data = {"sessions": [s.to_dict() for s in sessions]}
-    fd, tmp_name = tempfile.mkstemp(
-        dir=paths.registry.parent, prefix="registry.json.tmp."
-    )
+    fd, tmp_name = tempfile.mkstemp(dir=paths.registry.parent, prefix="registry.json.tmp.")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(json.dumps(data, indent=2) + "\n")
         os.replace(tmp_name, paths.registry)
     except OSError as e:
         # Clean up temp file on failure
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(tmp_name)
-        except OSError:
-            pass
         raise CanvasRegistryError(f"Failed to write registry: {e}") from e
 
 
@@ -70,9 +69,7 @@ def add_session(session: Session, paths: CanvasPaths | None = None) -> None:
     """Add a session to the registry. Raises if slug already exists."""
     sessions = load_registry(paths)
     if any(s.slug == session.slug for s in sessions):
-        raise CanvasRegistryError(
-            f"Session '{session.slug}' already exists in registry."
-        )
+        raise CanvasRegistryError(f"Session '{session.slug}' already exists in registry.")
     sessions.append(session)
     save_registry(sessions, paths)
 
@@ -89,7 +86,8 @@ def find_session(slug: str, paths: CanvasPaths | None = None) -> Session | None:
 def update_session(slug: str, paths: CanvasPaths | None = None, **fields: Any) -> Session:
     """Update fields on a session. Returns the updated session.
 
-    Only `label`, `status`, and `archived_at` can be updated. `slug`, `org`, and `created` are immutable.
+    Only `label`, `status`, and `archived_at` can be updated.
+    `slug`, `org`, and `created` are immutable.
     Raises CanvasRegistryError if slug not found or field is invalid/immutable.
     """
     sessions = load_registry(paths)
@@ -107,9 +105,7 @@ def update_session(slug: str, paths: CanvasPaths | None = None, **fields: Any) -
                 try:
                     coerced["status"] = SessionStatus(coerced["status"])
                 except ValueError as e:
-                    raise CanvasRegistryError(
-                        f"Invalid status value: {e}"
-                    ) from e
+                    raise CanvasRegistryError(f"Invalid status value: {e}") from e
             if "archived_at" in coerced and isinstance(coerced["archived_at"], str):
                 try:
                     coerced["archived_at"] = datetime.date.fromisoformat(coerced["archived_at"])
