@@ -16,8 +16,18 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
-    "pytest-cov",
+    "pytest-cov>=5.0",
 ]
 
 [project.scripts]
 canvas = "canvas.cli:cli"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers --tb=short"
+
+[tool.coverage.run]
+source = ["canvas"]
+
+[tool.coverage.report]
+show_missing = true
