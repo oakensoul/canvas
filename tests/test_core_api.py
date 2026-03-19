@@ -1,15 +1,19 @@
+# SPDX-FileCopyrightText: 2025 Robert Gunnar Johnson Jr.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for reactivate_session, stale_sessions, and public API imports."""
 
 from __future__ import annotations
 
 import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from canvas.config import resolve_paths
 from canvas.core import reactivate_session, stale_sessions
-from canvas.exceptions import CanvasSessionError
+from canvas.exceptions import CanvasRegistryError, CanvasSessionError
 from canvas.models import Session, SessionStatus
 from canvas.registry import add_session, load_registry
 
@@ -100,6 +104,22 @@ class TestReactivateSession:
         with pytest.raises(CanvasSessionError, match="not found"):
             reactivate_session("anything", paths=paths)
 
+    def test_generic_exception_wrapped(self, paths, populated_registry):
+        """Non-CanvasError exceptions are wrapped in CanvasSessionError."""
+        with (
+            patch("canvas.core.update_session", side_effect=RuntimeError("disk full")),
+            pytest.raises(CanvasSessionError, match="Failed to reactivate session"),
+        ):
+            reactivate_session("archived-old", paths=paths)
+
+    def test_canvas_error_reraised_directly(self, paths, populated_registry):
+        """CanvasError subclasses are re-raised without wrapping."""
+        with (
+            patch("canvas.core.update_session", side_effect=CanvasRegistryError("corrupt")),
+            pytest.raises(CanvasRegistryError, match="corrupt"),
+        ):
+            reactivate_session("archived-old", paths=paths)
+
 
 # ── stale_sessions ──
 
@@ -169,23 +189,27 @@ class TestPublicAPIImports:
     def test_import_new_session(self):
         """from canvas import new_session works."""
         from canvas import new_session
+
         assert callable(new_session)
 
     def test_import_models(self):
         """from canvas import Session, SessionStatus works."""
         from canvas import Session, SessionStatus
+
         assert Session is not None
         assert SessionStatus is not None
 
     def test_all_is_complete(self):
         """All names in __all__ are importable."""
         import canvas
+
         for name in canvas.__all__:
             assert hasattr(canvas, name), f"canvas.{name} not importable"
 
     def test_dir_includes_expected_names(self):
         """dir(canvas) includes all expected names."""
         import canvas
+
         module_dir = dir(canvas)
         expected = [
             "CanvasConfigError",
@@ -211,11 +235,13 @@ class TestPublicAPIImports:
     def test_import_reactivate_session(self):
         """from canvas import reactivate_session works."""
         from canvas import reactivate_session
+
         assert callable(reactivate_session)
 
     def test_import_stale_sessions(self):
         """from canvas import stale_sessions works."""
         from canvas import stale_sessions
+
         assert callable(stale_sessions)
 
     def test_import_exceptions(self):
@@ -227,6 +253,7 @@ class TestPublicAPIImports:
             CanvasSessionError,
             CanvasTemplateError,
         )
+
         assert issubclass(CanvasConfigError, CanvasError)
         assert issubclass(CanvasRegistryError, CanvasError)
         assert issubclass(CanvasSessionError, CanvasError)

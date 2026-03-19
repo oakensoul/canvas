@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Robert Gunnar Johnson Jr.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for canvas.template — CLAUDE.md rendering from org templates."""
 
 from __future__ import annotations
@@ -43,7 +46,10 @@ class TestRenderClaudeMdHappyPath:
         )
 
         result = render_claude_md(
-            org="acme", slug="my-session", label="my label", paths=paths,
+            org="acme",
+            slug="my-session",
+            label="my label",
+            paths=paths,
             date=FIXED_DATE,
         )
 
@@ -100,9 +106,7 @@ class TestRenderClaudeMdLabelNone:
         paths, template_base = template_env
         org_dir = template_base / "testorg"
         org_dir.mkdir()
-        (org_dir / "CLAUDE.md.tmpl").write_text(
-            'Label: {{ label or "unlabeled" }}'
-        )
+        (org_dir / "CLAUDE.md.tmpl").write_text('Label: {{ label or "unlabeled" }}')
 
         result = render_claude_md(org="testorg", slug="s", label=None, paths=paths)
 
@@ -129,7 +133,9 @@ class TestRenderClaudeMdSessionPath:
         (org_dir / "CLAUDE.md.tmpl").write_text("Path: {{ session_path }}")
 
         result = render_claude_md(
-            org="pathorg", slug="s", paths=paths,
+            org="pathorg",
+            slug="s",
+            paths=paths,
             session_path=Path("/tmp/sessions/my-session"),
         )
 
@@ -179,9 +185,7 @@ class TestRenderClaudeMdMultipleOrgs:
         for name in ("alpha", "beta"):
             org_dir = template_base / name
             org_dir.mkdir()
-            (org_dir / "CLAUDE.md.tmpl").write_text(
-                f"Welcome to {name}! Org: {{{{ org }}}}"
-            )
+            (org_dir / "CLAUDE.md.tmpl").write_text(f"Welcome to {name}! Org: {{{{ org }}}}")
 
         result_alpha = render_claude_md(org="alpha", slug="s1", paths=paths)
         result_beta = render_claude_md(org="beta", slug="s2", paths=paths)
@@ -203,7 +207,9 @@ class TestRenderClaudeMdConfigVariable:
         (org_dir / "CLAUDE.md.tmpl").write_text("Custom: {{ config.custom_key }}")
 
         result = render_claude_md(
-            org="cfgorg", slug="s", paths=paths,
+            org="cfgorg",
+            slug="s",
+            paths=paths,
             config={"custom_key": "hello-world"},
         )
 

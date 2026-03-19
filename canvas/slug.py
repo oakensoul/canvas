@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Robert Gunnar Johnson Jr.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Date + random word slug generation (e.g. 2026-03-13-electric-penguin)."""
 
 from __future__ import annotations
@@ -7,6 +10,8 @@ import random
 import re
 
 from canvas.exceptions import CanvasSessionError
+
+_PATH_TRAVERSAL_PATTERN = re.compile(r"[/\\]|\.\.|[\x00]")
 
 _ADJECTIVES = (
     "alpine",
@@ -178,6 +183,26 @@ _NOUNS = (
 _LABEL_MAX_LENGTH = 60
 
 
+def validate_org(org: str) -> None:
+    """Validate that an org name contains no path-traversal characters.
+
+    Rejects ``/``, ``\\``, ``..``, and null bytes.
+    Raises :class:`~canvas.exceptions.CanvasSessionError` on violation.
+    """
+    if _PATH_TRAVERSAL_PATTERN.search(org):
+        raise CanvasSessionError(f"Org name contains invalid characters: {org!r}")
+
+
+def validate_slug(slug: str) -> None:
+    """Validate that a slug contains no path-traversal characters.
+
+    Rejects ``/``, ``\\``, ``..``, and null bytes.
+    Raises :class:`~canvas.exceptions.CanvasSessionError` on violation.
+    """
+    if _PATH_TRAVERSAL_PATTERN.search(slug):
+        raise CanvasSessionError(f"Slug contains invalid characters: {slug!r}")
+
+
 def _to_kebab(label: str) -> str:
     """Convert a label to kebab-case, stripping non-alphanumeric characters."""
     kebab = label.lower().strip()
@@ -194,9 +219,7 @@ def validate_label(label: str) -> None:
     empty, whitespace-only, or all punctuation.
     """
     if not _to_kebab(label):
-        raise CanvasSessionError(
-            "Label must contain at least one alphanumeric character"
-        )
+        raise CanvasSessionError("Label must contain at least one alphanumeric character")
 
 
 def generate_slug(label: str | None = None, date: datetime.date | None = None) -> str:
@@ -217,6 +240,6 @@ def generate_slug(label: str | None = None, date: datetime.date | None = None) -
         kebab = kebab[:_LABEL_MAX_LENGTH].strip("-")
         return f"{date_str}-{kebab}"
 
-    adj = random.choice(_ADJECTIVES)
-    noun = random.choice(_NOUNS)
+    adj = random.choice(_ADJECTIVES)  # noqa: S311 — not cryptographic
+    noun = random.choice(_NOUNS)  # noqa: S311
     return f"{date_str}-{adj}-{noun}"

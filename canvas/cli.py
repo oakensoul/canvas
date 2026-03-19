@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Robert Gunnar Johnson Jr.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Click CLI for canvas — commands: new, list, archive, nuke, rename, open."""
 
 import os
@@ -25,16 +28,17 @@ def new(label: str | None, org: str | None) -> None:
     try:
         session = core.new_session(label=label, org=org)
         console = Console(stderr=True)
-        console.print(Panel(
-            f"[bold]{session.slug}[/bold]\n"
-            f"org: {session.org}  created: {session.created}",
-            title="Canvas Session Created",
-        ))
+        console.print(
+            Panel(
+                f"[bold]{session.slug}[/bold]\norg: {session.org}  created: {session.created}",
+                title="Canvas Session Created",
+            )
+        )
         session_dir = str(resolve_paths().sessions_dir / session.slug)
         os.chdir(session_dir)
-        os.execvp("claude", ["claude"])
+        os.execvp("claude", ["claude"])  # noqa: S606, S607
     except CanvasError as e:
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @cli.command("list")
@@ -69,7 +73,7 @@ def list_sessions(status: str | None, org: str | None, show_all: bool) -> None:
             )
         console.print(table)
     except CanvasError as e:
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @cli.command()
@@ -81,7 +85,7 @@ def archive(slug: str) -> None:
         console = Console(stderr=True)
         console.print(f"Archived [bold]{session.slug}[/bold].")
     except CanvasError as e:
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @cli.command()
@@ -96,7 +100,7 @@ def nuke(slug: str, yes: bool) -> None:
         console = Console(stderr=True)
         console.print(f"Nuked [bold]{slug}[/bold].")
     except CanvasError as e:
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @cli.command()
@@ -109,7 +113,7 @@ def rename(slug: str, label: str) -> None:
         console = Console(stderr=True)
         console.print(f"Renamed [bold]{session.slug}[/bold] → {session.label}")
     except CanvasError as e:
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @cli.command("open")
@@ -118,6 +122,7 @@ def open_session(slug: str) -> None:
     """Re-open an existing canvas session and launch claude."""
     try:
         from canvas.registry import find_session
+
         session = find_session(slug)
         if session is None:
             raise CanvasSessionError(f"Session '{slug}' not found.")
@@ -125,6 +130,6 @@ def open_session(slug: str) -> None:
         if not session_dir.is_dir():
             raise CanvasSessionError(f"Session directory missing: {session_dir}")
         os.chdir(str(session_dir))
-        os.execvp("claude", ["claude"])
+        os.execvp("claude", ["claude"])  # noqa: S606, S607
     except CanvasError as e:
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e)) from e

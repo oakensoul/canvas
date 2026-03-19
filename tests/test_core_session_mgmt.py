@@ -1,15 +1,19 @@
+# SPDX-FileCopyrightText: 2025 Robert Gunnar Johnson Jr.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for canvas.core session management functions."""
 
 from __future__ import annotations
 
 import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from canvas.config import resolve_paths
 from canvas.core import archive_session, list_sessions, nuke_session, rename_session
-from canvas.exceptions import CanvasSessionError
+from canvas.exceptions import CanvasRegistryError, CanvasSessionError
 from canvas.models import Session, SessionStatus
 from canvas.registry import add_session, load_registry
 
@@ -103,6 +107,12 @@ class TestListSessions:
         with pytest.raises(CanvasSessionError, match="Invalid status"):
             list_sessions(status="bogus", paths=paths)
 
+    def test_filter_by_status_enum_directly(self, paths, populated_registry):
+        """Passing SessionStatus enum directly works (enum-passthrough path)."""
+        result = list_sessions(status=SessionStatus.ACTIVE, paths=paths)
+        assert len(result) == 2
+        assert all(s.status == SessionStatus.ACTIVE for s in result)
+
 
 # ── archive_session ──
 
@@ -136,6 +146,22 @@ class TestArchiveSession:
         archive_session("alpha", paths=paths)
         assert session_dir.exists()
 
+    def test_generic_exception_wrapped(self, paths, populated_registry):
+        """Non-CanvasError exceptions are wrapped in CanvasSessionError."""
+        with (
+            patch("canvas.core.update_session", side_effect=RuntimeError("disk full")),
+            pytest.raises(CanvasSessionError, match="Failed to archive session"),
+        ):
+            archive_session("alpha", paths=paths)
+
+    def test_canvas_error_reraised_directly(self, paths, populated_registry):
+        """CanvasError subclasses are re-raised without wrapping."""
+        with (
+            patch("canvas.core.update_session", side_effect=CanvasRegistryError("corrupt")),
+            pytest.raises(CanvasRegistryError, match="corrupt"),
+        ):
+            archive_session("alpha", paths=paths)
+
 
 # ── nuke_session ──
 
@@ -159,6 +185,14 @@ class TestNukeSession:
     def test_not_found(self, paths, populated_registry):
         with pytest.raises(CanvasSessionError, match="not found"):
             nuke_session("nonexistent", paths=paths)
+
+    def test_rmtree_oserror_raises_session_error(self, paths, populated_registry):
+        """OSError during rmtree is wrapped in CanvasSessionError."""
+        with (
+            patch("canvas.core.shutil.rmtree", side_effect=OSError("Permission denied")),
+            pytest.raises(CanvasSessionError, match="Failed to remove session directory"),
+        ):
+            nuke_session("alpha", paths=paths)
 
 
 # ── rename_session ──
