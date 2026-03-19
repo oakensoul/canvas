@@ -72,6 +72,13 @@ class TestRenderClaudeMdMissingTemplate:
         assert "missing-org" in msg
         assert str(template_base) in msg
 
+    def test_missing_template_actionable_message(self, template_env):
+        """Missing template error includes creation instructions."""
+        paths, _ = template_env
+
+        with pytest.raises(CanvasTemplateError, match="Create it with"):
+            render_claude_md(org="nonexistent", slug="s", paths=paths)
+
 
 class TestRenderClaudeMdMalformedTemplate:
     """Malformed Jinja2 templates raise CanvasTemplateError."""
@@ -183,3 +190,47 @@ class TestRenderClaudeMdMultipleOrgs:
         assert "Org: alpha" in result_alpha
         assert "Welcome to beta!" in result_beta
         assert "Org: beta" in result_beta
+
+
+class TestRenderClaudeMdConfigVariable:
+    """config dict is available as a template variable."""
+
+    def test_config_custom_key(self, template_env):
+        """Custom config keys are accessible via {{ config.custom_key }}."""
+        paths, template_base = template_env
+        org_dir = template_base / "cfgorg"
+        org_dir.mkdir()
+        (org_dir / "CLAUDE.md.tmpl").write_text("Custom: {{ config.custom_key }}")
+
+        result = render_claude_md(
+            org="cfgorg", slug="s", paths=paths,
+            config={"custom_key": "hello-world"},
+        )
+
+        assert "Custom: hello-world" in result
+
+    def test_config_none_defaults_to_empty_dict(self, template_env):
+        """When config is None, config is an empty dict in the template."""
+        paths, template_base = template_env
+        org_dir = template_base / "cfgorg2"
+        org_dir.mkdir()
+        (org_dir / "CLAUDE.md.tmpl").write_text("Has config: {{ config | length }}")
+
+        result = render_claude_md(org="cfgorg2", slug="s", paths=paths)
+
+        assert "Has config: 0" in result
+
+
+class TestRenderClaudeMdTemplateErrorFallback:
+    """Non-syntax, non-undefined TemplateErrors are caught as fallback."""
+
+    def test_generic_template_error_raises(self, template_env):
+        """A TemplateError that is not UndefinedError or SyntaxError is caught."""
+        paths, template_base = template_env
+        org_dir = template_base / "errtmpl"
+        org_dir.mkdir()
+        # Use a recursive include to trigger a TemplateError (template not found by loader)
+        (org_dir / "CLAUDE.md.tmpl").write_text("{% include 'nonexistent.html' %}")
+
+        with pytest.raises(CanvasTemplateError, match="Template error"):
+            render_claude_md(org="errtmpl", slug="s", paths=paths)

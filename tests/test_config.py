@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from canvas.config import CanvasPaths, load_config, resolve_paths
+from canvas.config import CanvasConfig, CanvasPaths, load_config, resolve_paths
 from canvas.exceptions import CanvasConfigError
 
 
@@ -19,7 +19,7 @@ class TestResolvePaths:
         custom = tmp_path / "custom"
         paths = resolve_paths(canvas_home=custom)
         assert paths.home == custom
-        assert paths.config == custom / "config"
+        assert paths.config == custom / "config.json"
         assert paths.registry == custom / "registry.json"
         assert paths.sessions_dir == custom / "sessions"
 
@@ -27,7 +27,7 @@ class TestResolvePaths:
         """CANVAS_HOME env var is used when no explicit param given."""
         paths = resolve_paths()
         assert paths.home == canvas_home
-        assert paths.config == canvas_home / "config"
+        assert paths.config == canvas_home / "config.json"
         assert paths.registry == canvas_home / "registry.json"
         assert paths.sessions_dir == canvas_home / "sessions"
 
@@ -56,29 +56,37 @@ class TestLoadConfig:
     """Tests for load_config()."""
 
     def test_happy_path(self, canvas_home: Path) -> None:
-        """Valid config file is read and returned as dict."""
+        """Valid config file is read and returned as CanvasConfig."""
         config_data = {"org": "acme", "extra": "value"}
-        (canvas_home / "config").write_text(json.dumps(config_data))
+        (canvas_home / "config.json").write_text(json.dumps(config_data), encoding="utf-8")
         paths = resolve_paths()
         result = load_config(paths)
-        assert result == config_data
+        assert isinstance(result, CanvasConfig)
+        assert result.org == "acme"
+        assert result.raw == config_data
 
     def test_missing_file_raises(self, canvas_home: Path) -> None:
-        """Missing config file raises CanvasConfigError."""
+        """Missing config file raises CanvasConfigError with actionable message."""
         paths = resolve_paths()
         with pytest.raises(CanvasConfigError, match="Config not found"):
             load_config(paths)
 
+    def test_missing_file_actionable_message(self, canvas_home: Path) -> None:
+        """Missing config error includes creation command."""
+        paths = resolve_paths()
+        with pytest.raises(CanvasConfigError, match="Create it with"):
+            load_config(paths)
+
     def test_malformed_json_raises(self, canvas_home: Path) -> None:
         """Malformed JSON raises CanvasConfigError."""
-        (canvas_home / "config").write_text("{not valid json")
+        (canvas_home / "config.json").write_text("{not valid json", encoding="utf-8")
         paths = resolve_paths()
         with pytest.raises(CanvasConfigError, match="Malformed config"):
             load_config(paths)
 
     def test_missing_org_field_raises(self, canvas_home: Path) -> None:
         """Config without 'org' field raises CanvasConfigError."""
-        (canvas_home / "config").write_text(json.dumps({"name": "test"}))
+        (canvas_home / "config.json").write_text(json.dumps({"name": "test"}), encoding="utf-8")
         paths = resolve_paths()
         with pytest.raises(CanvasConfigError, match="missing required 'org' field"):
             load_config(paths)
@@ -89,10 +97,26 @@ class TestLoadConfig:
         home = tmp_path / "explicit"
         home.mkdir()
         config_data = {"org": "explicit-org"}
-        (home / "config").write_text(json.dumps(config_data))
+        (home / "config.json").write_text(json.dumps(config_data), encoding="utf-8")
         paths = resolve_paths(canvas_home=home)
         result = load_config(paths)
-        assert result == config_data
+        assert result.org == "explicit-org"
+        assert result.raw == config_data
+
+    def test_legacy_config_raises(self, canvas_home: Path) -> None:
+        """Legacy config file (without .json) raises with migration message."""
+        (canvas_home / "config").write_text(json.dumps({"org": "acme"}), encoding="utf-8")
+        paths = resolve_paths()
+        with pytest.raises(CanvasConfigError, match="legacy config file"):
+            load_config(paths)
+
+    def test_legacy_config_not_triggered_when_json_exists(self, canvas_home: Path) -> None:
+        """Legacy check is skipped when config.json already exists."""
+        (canvas_home / "config").write_text(json.dumps({"org": "old"}), encoding="utf-8")
+        (canvas_home / "config.json").write_text(json.dumps({"org": "new"}), encoding="utf-8")
+        paths = resolve_paths()
+        result = load_config(paths)
+        assert result.org == "new"
 
 
 class TestResolvePathsTemplateBase:
@@ -130,3 +154,13 @@ class TestCanvasPathsFrozen:
         paths = resolve_paths(canvas_home=Path("/tmp/test"))
         with pytest.raises(dataclasses.FrozenInstanceError):
             paths.home = Path("/tmp/other")  # type: ignore[misc]
+
+
+class TestCanvasConfigFrozen:
+    """Tests for CanvasConfig immutability."""
+
+    def test_frozen(self) -> None:
+        """CanvasConfig instances are immutable."""
+        cfg = CanvasConfig(org="acme", raw={"org": "acme"})
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            cfg.org = "other"  # type: ignore[misc]

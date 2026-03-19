@@ -52,7 +52,7 @@ class TestLoadRegistry:
                 }
             ]
         }
-        registry_path.write_text(json.dumps(data))
+        registry_path.write_text(json.dumps(data), encoding="utf-8")
         sessions = load_registry()
         assert len(sessions) == 1
         assert sessions[0].slug == "s1"
@@ -60,20 +60,20 @@ class TestLoadRegistry:
 
     def test_corrupt_json_raises(self, canvas_home: Path):
         registry_path = canvas_home / "registry.json"
-        registry_path.write_text("{not valid json")
+        registry_path.write_text("{not valid json", encoding="utf-8")
         with pytest.raises(CanvasRegistryError, match="Corrupt registry"):
             load_registry()
 
     def test_invalid_session_data_raises(self, canvas_home: Path):
         registry_path = canvas_home / "registry.json"
         data = {"sessions": [{"slug": "s", "org": "o", "created": "bad", "status": "active"}]}
-        registry_path.write_text(json.dumps(data))
+        registry_path.write_text(json.dumps(data), encoding="utf-8")
         with pytest.raises(CanvasRegistryError, match="Corrupt registry"):
             load_registry()
 
     def test_empty_sessions_list(self, canvas_home: Path):
         registry_path = canvas_home / "registry.json"
-        registry_path.write_text(json.dumps({"sessions": []}))
+        registry_path.write_text(json.dumps({"sessions": []}), encoding="utf-8")
         sessions = load_registry()
         assert sessions == []
 
@@ -83,7 +83,7 @@ class TestSaveRegistry:
         session = _make_session()
         save_registry([session])
         registry_path = canvas_home / "registry.json"
-        data = json.loads(registry_path.read_text())
+        data = json.loads(registry_path.read_text(encoding="utf-8"))
         assert len(data["sessions"]) == 1
         assert data["sessions"][0]["slug"] == "test-session"
 
@@ -101,7 +101,7 @@ class TestSaveRegistry:
 
     def test_save_empty_list(self, canvas_home: Path):
         save_registry([])
-        data = json.loads((canvas_home / "registry.json").read_text())
+        data = json.loads((canvas_home / "registry.json").read_text(encoding="utf-8"))
         assert data == {"sessions": []}
 
     def test_creates_parent_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -227,7 +227,7 @@ class TestCRUDCycle:
 class TestSaveRegistryErrors:
     def test_oserror_on_replace_cleans_up_tmp(self, canvas_home: Path):
         """OSError during atomic replace raises CanvasRegistryError and cleans up temp file."""
-        with patch.object(Path, "replace", side_effect=OSError("permission denied")):
+        with patch("os.replace", side_effect=OSError("permission denied")):
             with pytest.raises(CanvasRegistryError, match="Failed to write registry"):
                 save_registry([_make_session()])
         # The temp file should have been cleaned up by the except branch
@@ -238,7 +238,7 @@ class TestSaveRegistryErrors:
 class TestLoadRegistryEdgeCases:
     def test_missing_sessions_key_returns_empty(self, canvas_home: Path):
         """Valid JSON without a 'sessions' key returns empty list."""
-        (canvas_home / "registry.json").write_text('{"version": 1}')
+        (canvas_home / "registry.json").write_text('{"version": 1}', encoding="utf-8")
         sessions = load_registry()
         assert sessions == []
 
@@ -252,7 +252,7 @@ class TestExplicitPaths:
                 {"slug": "s1", "org": "acme", "created": "2026-01-01", "status": "active"}
             ]
         }
-        registry_path.write_text(json.dumps(data))
+        registry_path.write_text(json.dumps(data), encoding="utf-8")
         sessions = load_registry(paths=paths)
         assert len(sessions) == 1
         assert sessions[0].slug == "s1"
