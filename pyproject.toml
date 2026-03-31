@@ -7,6 +7,7 @@ name = "oakensoul-canvas"
 version = "0.1.0"
 description = "CLI + library for managing ephemeral org-aware Claude Code workspaces"
 license = "AGPL-3.0-or-later"
+readme = "README.md"
 authors = [
     {name = "Robert Gunnar Johnson Jr.", email = "github@oakensoul.com"},
 ]
@@ -37,8 +38,17 @@ dev = [
     "twine>=5.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/oakensoul/canvas"
+Repository = "https://github.com/oakensoul/canvas"
+Issues = "https://github.com/oakensoul/canvas/issues"
+
 [project.scripts]
 canvas = "canvas.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["canvas*"]
 
 [tool.ruff]
 target-version = "py311"
