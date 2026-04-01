@@ -28,6 +28,13 @@ credentials.json
 credentials.yaml
 credentials.toml
 
+# IDE
+.idea/
+.vscode/
+.cursor/
+.claude/settings.local.json
+.claude/worktrees/
+
 # OS files
 .DS_Store
 Thumbs.db
