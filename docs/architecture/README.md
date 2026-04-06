@@ -77,11 +77,11 @@ Re-enters an existing session: looks up the slug in the registry, `cd`s into the
 
 ```json
 {
-  "org": "splash"
+  "org": "work"
 }
 ```
 
-No env vars, no flags, no detection logic. The config is user-scoped — `gunnar` has one, `work` has one. Each reads its own.
+No env vars, no flags, no detection logic. The config is user-scoped — `alice` has one config, another user has another. Each reads its own.
 
 ---
 
@@ -101,7 +101,7 @@ No env vars, no flags, no detection logic. The config is user-scoped — `gunnar
     },
     {
       "slug": "2026-03-10-okr-planning",
-      "org": "splash",
+      "org": "work",
       "created": "2026-03-10",
       "label": "okr planning",
       "status": "active"
@@ -150,15 +150,15 @@ One iTerm2 profile per org, configured with "Send text at start":
 canvas new && exit   # new session, launch claude, close shell on claude exit
 ```
 
-This means opening the `Splash` iTerm2 profile automatically creates a new canvas session with Splash context and launches Claude. No manual steps.
+This means opening the `Work` iTerm2 profile automatically creates a new canvas session with that org's context and launches Claude. No manual steps.
 
 Profiles are created by `loadout init` per org, using the color scheme conventions from the devbox iTerm2 setup:
 
 | Org | Scheme |
 |-----|--------|
 | personal | Dracula / Catppuccin |
-| splash | Nord |
-| mythical | Tokyo Night |
+| work | Nord |
+| creative | Tokyo Night |
 
 ---
 
@@ -166,7 +166,7 @@ Profiles are created by `loadout init` per org, using the color scheme conventio
 
 ```
 🎨  CANVAS
-✅ 2026-03-13-okr-planning (splash) — 2d ago
+✅ 2026-03-13-okr-planning (work) — 2d ago
 ⚠️  2026-02-01-electric-penguin (personal) — 39d ago  ← consider archiving or nuking
 ```
 
@@ -197,7 +197,7 @@ canvas/
 | Session slugs | `YYYY-MM-DD-word-word` | `2026-03-13-electric-penguin` |
 | Labels | kebab-case | `okr-planning` |
 | Session directories | slug only | `~/.canvas/sessions/2026-03-13-electric-penguin/` |
-| Org names | kebab-case | `personal`, `splash`, `mythical` |
+| Org names | kebab-case | `personal`, `work`, `creative` |
 
 ---
 
